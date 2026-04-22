@@ -76,7 +76,7 @@ export const VOTING_PERIODS: VotingPeriodOption[] = [
   { label: '30 Days', seconds: 2592000, description: 'Constitutional changes' },
 ];
 
-export const PROGRAM_ID = 'VeiLVoteXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+export const PROGRAM_ID = 'B9xuJHLGqgb2szy76qBUiXrAFpYgx4g7aUZrEDimsRFk';
 
 // Network configuration
 export const NETWORK = 'devnet';

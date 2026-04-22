@@ -8,7 +8,7 @@ const COMP_DEF_OFFSET_VOTE: u32 = comp_def_offset("vote");
 const COMP_DEF_OFFSET_REVEAL: u32 = comp_def_offset("reveal_result");
 
 // Placeholder program ID — replace with real ID after `arcium init` on VPS
-declare_id!("VeiLVoteXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+declare_id!("B9xuJHLGqgb2szy76qBUiXrAFpYgx4g7aUZrEDimsRFk");
 
 #[arcium_program]
 pub mod veilvote {
