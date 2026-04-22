@@ -1,0 +1,21 @@
+[package]
+name = "veilvote"
+version = "0.1.0"
+description = "VeilVote — Private DAO Governance powered by Arcium MPC"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "veilvote"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.32.0"
+arcium-anchor = "0.3.0"
+arcium-client = "0.3.0"

@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+app/node_modules/
+
+# Build outputs
+target/
+build/
+app/.next/
+app/out/
+
+# Environment
+.env
+.env.local
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Solana
+test-ledger/
+.anchor/
+
+# Logs
+*.log
+npm-debug.log*
