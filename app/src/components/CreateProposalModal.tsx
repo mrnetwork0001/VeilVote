@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import * as anchor from '@coral-xyz/anchor';
+import { Transaction } from '@solana/web3.js';
 import { VOTING_PERIODS } from '@/lib/types';
 import { createProposal, getExplorerLink } from '@/lib/veilvote-client';
 
@@ -33,22 +33,17 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
     setTxSig(null);
 
     try {
-      const anchorWallet = {
-        publicKey: wallet.publicKey,
-        signTransaction: wallet.signTransaction.bind(wallet),
-        signAllTransactions: wallet.signAllTransactions!.bind(wallet),
-      } as anchor.Wallet;
-
-      // Use a random poll ID (0-99999) to avoid collisions
       const pollId = Math.floor(Math.random() * 100000);
-
-      // Question is limited to 50 chars in the program
       const question = title.trim().substring(0, 50);
 
-      const sig = await createProposal(connection, anchorWallet, pollId, question);
+      const sig = await createProposal(
+        connection,
+        { publicKey: wallet.publicKey, signTransaction: wallet.signTransaction.bind(wallet) },
+        pollId,
+        question
+      );
       setTxSig(sig);
 
-      // Wait a moment then close
       setTimeout(() => {
         setTitle('');
         setDescription('');
@@ -56,7 +51,7 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
         setTxSig(null);
         onClose();
         onCreated?.();
-      }, 3000);
+      }, 4000);
     } catch (err: any) {
       console.error('Create proposal failed:', err);
       setError(err?.message || 'Failed to create proposal');
@@ -151,7 +146,7 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
                 fontSize: '0.8rem',
                 color: 'var(--text-secondary)',
               }}>
-                🔐 This creates a real on-chain proposal on Solana devnet. Your wallet will sign the transaction. MPC nodes will initialize encrypted vote tallies.
+                🔐 This creates a real on-chain proposal on Solana devnet. Your wallet will sign the transaction.
               </div>
             </>
           )}
@@ -165,7 +160,7 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
             <button
               className="btn btn-primary"
               onClick={handleSubmit}
-              disabled={!title.trim() || isSubmitting}
+              disabled={!title.trim() || isSubmitting || !wallet.connected}
               id="submit-proposal-button"
             >
               {isSubmitting ? '⏳ Submitting...' : '🗳️ Create Proposal'}

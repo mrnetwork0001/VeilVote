@@ -3,10 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import ProposalCard from '@/components/ProposalCard';
 import CreateProposalModal from '@/components/CreateProposalModal';
-import { type Proposal, type ProposalStatus, PROGRAM_ID } from '@/lib/types';
+import { type Proposal, type ProposalStatus } from '@/lib/types';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import * as anchor from '@coral-xyz/anchor';
-import { PublicKey } from '@solana/web3.js';
 import { fetchAllPolls, type OnChainPoll } from '@/lib/veilvote-client';
 
 type FilterTab = 'all' | ProposalStatus;
@@ -15,19 +13,19 @@ function pollToProposal(poll: OnChainPoll): Proposal {
   return {
     id: poll.id,
     title: poll.question,
-    description: `On-chain proposal #${poll.id} | Authority: ${poll.authority.toBase58().slice(0, 8)}...`,
-    authority: poll.authority.toBase58(),
-    endTime: Math.floor(Date.now() / 1000) + 86400, // Display as active (no endtime in contract)
+    description: `On-chain proposal #${poll.id}`,
+    authority: poll.authority,
+    endTime: Math.floor(Date.now() / 1000) + 86400,
     totalVotes: 0,
     status: 'active',
     voteState: poll.voteState,
-    nonce: poll.nonce.toString(),
-    pda: poll.pda.toBase58(),
+    nonce: poll.nonce,
+    pda: poll.pda,
   };
 }
 
 export default function ProposalsPage() {
-  const { connected, publicKey, signTransaction, signAllTransactions } = useWallet();
+  const { connected } = useWallet();
   const { connection } = useConnection();
   const [filter, setFilter] = useState<FilterTab>('all');
   const [showModal, setShowModal] = useState(false);
@@ -36,19 +34,11 @@ export default function ProposalsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const loadProposals = useCallback(async () => {
-    if (!publicKey || !signTransaction) return;
-
     setLoading(true);
     setError(null);
 
     try {
-      const anchorWallet = {
-        publicKey,
-        signTransaction: signTransaction.bind(null),
-        signAllTransactions: signAllTransactions?.bind(null),
-      } as anchor.Wallet;
-
-      const polls = await fetchAllPolls(connection, anchorWallet);
+      const polls = await fetchAllPolls(connection);
       const mappedProposals = polls.map(pollToProposal);
       setProposals(mappedProposals);
     } catch (err: any) {
@@ -57,13 +47,13 @@ export default function ProposalsPage() {
     } finally {
       setLoading(false);
     }
-  }, [publicKey, signTransaction, signAllTransactions, connection]);
+  }, [connection]);
 
   useEffect(() => {
-    if (connected && publicKey) {
+    if (connected) {
       loadProposals();
     }
-  }, [connected, publicKey, loadProposals]);
+  }, [connected, loadProposals]);
 
   const filteredProposals = proposals.filter((p) => {
     if (filter === 'all') return true;
@@ -87,17 +77,13 @@ export default function ProposalsPage() {
             </h1>
             <p style={{ color: 'var(--text-secondary)' }}>
               {connected
-                ? `${proposals.length} proposals found on devnet. All votes are encrypted using Arcium MPC.`
+                ? `${proposals.length} proposals on devnet. All votes encrypted via Arcium MPC.`
                 : 'Connect your wallet to browse and create proposals on Solana devnet.'}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center' }}>
             {connected && (
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={loadProposals}
-                disabled={loading}
-              >
+              <button className="btn btn-ghost btn-sm" onClick={loadProposals} disabled={loading}>
                 🔄 Refresh
               </button>
             )}
@@ -133,7 +119,7 @@ export default function ProposalsPage() {
           <div className="empty-state">
             <div className="empty-state-icon">🔗</div>
             <h3>Connect Your Wallet</h3>
-            <p>Connect a Solana wallet (Phantom, Solflare) to view on-chain proposals and vote.</p>
+            <p>Connect a Solana wallet (Phantom, Solflare) to view on-chain proposals.</p>
           </div>
         ) : loading ? (
           <div className="empty-state">
@@ -146,9 +132,7 @@ export default function ProposalsPage() {
             <div className="empty-state-icon">⚠️</div>
             <h3>Error Loading Proposals</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{error}</p>
-            <button className="btn btn-primary" onClick={loadProposals}>
-              Retry
-            </button>
+            <button className="btn btn-primary" onClick={loadProposals}>Retry</button>
           </div>
         ) : filteredProposals.length === 0 ? (
           <div className="empty-state">
@@ -156,7 +140,7 @@ export default function ProposalsPage() {
             <h3>No proposals found</h3>
             <p>
               {filter === 'all'
-                ? 'No proposals on devnet yet. Be the first to create one!'
+                ? 'No proposals on devnet yet. Create the first one!'
                 : `No ${filter} proposals at the moment.`}
             </p>
             {filter === 'all' && (

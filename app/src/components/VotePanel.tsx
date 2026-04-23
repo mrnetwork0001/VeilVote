@@ -2,18 +2,18 @@
 
 import { useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import * as anchor from '@coral-xyz/anchor';
 import type { VoteChoice, VoteStatus } from '@/lib/types';
 import { castVote, getExplorerLink } from '@/lib/veilvote-client';
 import VoteStatusTracker from './VoteStatusTracker';
 
 interface VotePanelProps {
   proposalId: number;
+  proposalAuthority: string;
   disabled?: boolean;
   hasVoted?: boolean;
 }
 
-export default function VotePanel({ proposalId, disabled = false, hasVoted = false }: VotePanelProps) {
+export default function VotePanel({ proposalId, proposalAuthority, disabled = false, hasVoted = false }: VotePanelProps) {
   const [selected, setSelected] = useState<VoteChoice | null>(null);
   const [status, setStatus] = useState<VoteStatus>('idle');
   const [txSig, setTxSig] = useState<string | null>(null);
@@ -28,30 +28,21 @@ export default function VotePanel({ proposalId, disabled = false, hasVoted = fal
     setErrorMsg(null);
 
     try {
-      // Step 1: Encrypting
       setStatus('encrypting');
 
-      const anchorWallet = {
-        publicKey: wallet.publicKey,
-        signTransaction: wallet.signTransaction.bind(wallet),
-        signAllTransactions: wallet.signAllTransactions!.bind(wallet),
-      } as anchor.Wallet;
-
-      // Step 2: Submitting (encryption happens in API route, then tx is sent)
       setStatus('submitting');
       const sig = await castVote(
         connection,
-        anchorWallet,
+        { publicKey: wallet.publicKey, signTransaction: wallet.signTransaction.bind(wallet) },
         proposalId,
-        selected === 'yes'
+        selected === 'yes',
+        proposalAuthority
       );
       setTxSig(sig);
 
-      // Step 3: Computing (MPC processing)
       setStatus('computing');
       await new Promise((r) => setTimeout(r, 3000));
 
-      // Step 4: Done
       setStatus('finalized');
     } catch (err: any) {
       console.error('Vote failed:', err);
@@ -66,7 +57,7 @@ export default function VotePanel({ proposalId, disabled = false, hasVoted = fal
         <div style={{ fontSize: '2rem', marginBottom: 'var(--space-md)' }}>✅</div>
         <h4 style={{ marginBottom: 'var(--space-sm)' }}>Vote Recorded</h4>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          Your encrypted vote has been tallied on-chain. Individual votes are never revealed.
+          Your encrypted vote has been tallied on-chain.
         </p>
       </div>
     );

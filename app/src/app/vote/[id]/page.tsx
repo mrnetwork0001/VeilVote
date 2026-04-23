@@ -3,7 +3,7 @@
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import * as anchor from '@coral-xyz/anchor';
+import { PublicKey } from '@solana/web3.js';
 import { shortenAddress } from '@/lib/program';
 import { hasUserVoted, fetchAllPolls, type OnChainPoll } from '@/lib/veilvote-client';
 import VotePanel from '@/components/VotePanel';
@@ -21,24 +21,21 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
 
   useEffect(() => {
     const loadPoll = async () => {
-      if (!wallet.publicKey || !wallet.signTransaction) {
+      if (!wallet.publicKey) {
         setLoading(false);
         return;
       }
 
       try {
-        const anchorWallet = {
-          publicKey: wallet.publicKey,
-          signTransaction: wallet.signTransaction.bind(wallet),
-          signAllTransactions: wallet.signAllTransactions?.bind(wallet),
-        } as anchor.Wallet;
-
-        const polls = await fetchAllPolls(connection, anchorWallet);
+        const polls = await fetchAllPolls(connection);
         const found = polls.find((p) => p.id === proposalId);
         if (found) {
           setPoll(found);
-          // Check if user already voted
-          const alreadyVoted = await hasUserVoted(connection, found.pda, wallet.publicKey!);
+          const alreadyVoted = await hasUserVoted(
+            connection,
+            new PublicKey(found.pda),
+            wallet.publicKey!
+          );
           setVoted(alreadyVoted);
         }
       } catch (err: any) {
@@ -50,7 +47,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
     };
 
     loadPoll();
-  }, [proposalId, wallet.publicKey, wallet.signTransaction, wallet.signAllTransactions, connection]);
+  }, [proposalId, wallet.publicKey, connection]);
 
   if (!wallet.connected) {
     return (
@@ -87,7 +84,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
           <div className="empty-state">
             <div className="empty-state-icon">🔍</div>
             <h3>Proposal #{proposalId} Not Found</h3>
-            <p>{error || 'This proposal doesn\'t exist on devnet. It may not have been created yet.'}</p>
+            <p>{error || 'This proposal doesn\'t exist on devnet.'}</p>
             <Link href="/proposals" className="btn btn-primary">
               ← Back to Proposals
             </Link>
@@ -115,7 +112,6 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
         </Link>
 
         <div className="vote-layout">
-          {/* Left: Proposal Details */}
           <div className="glass-card vote-details animate-fade-in">
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
               <span className="badge badge-active">active</span>
@@ -128,7 +124,6 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
               {poll.question}
             </h1>
 
-            {/* Metadata */}
             <div
               style={{
                 display: 'grid',
@@ -144,7 +139,7 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
                   Authority
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
-                  {shortenAddress(poll.authority.toBase58(), 6)}
+                  {shortenAddress(poll.authority, 6)}
                 </div>
               </div>
               <div>
@@ -152,12 +147,12 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
                   PDA
                 </div>
                 <a
-                  href={`https://explorer.solana.com/address/${poll.pda.toBase58()}?cluster=devnet`}
+                  href={`https://explorer.solana.com/address/${poll.pda}?cluster=devnet`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-accent)' }}
                 >
-                  {shortenAddress(poll.pda.toBase58(), 6)} ↗
+                  {shortenAddress(poll.pda, 6)} ↗
                 </a>
               </div>
               <div>
@@ -168,7 +163,6 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
               </div>
             </div>
 
-            {/* Privacy notice */}
             <div
               style={{
                 marginTop: 'var(--space-xl)',
@@ -186,16 +180,16 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
                   Your vote is encrypted on-chain
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  Votes are encrypted with x25519 + RescueCipher before submission. Arcium&apos;s MPC network processes votes on secret-shared data — no single node sees your choice. This is a real transaction on Solana devnet.
+                  Votes are encrypted with x25519 + RescueCipher before submission. This is a real transaction on Solana devnet powered by Arcium MPC.
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Right: Vote Panel */}
           <div className="vote-sidebar animate-fade-in" style={{ animationDelay: '0.15s' }}>
             <VotePanel
               proposalId={poll.id}
+              proposalAuthority={poll.authority}
               disabled={false}
               hasVoted={voted}
             />
