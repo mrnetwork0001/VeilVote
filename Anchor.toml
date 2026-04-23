@@ -11,7 +11,7 @@ veilvote = "B9xuJHLGqgb2szy76qBUiXrAFpYgx4g7aUZrEDimsRFk"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "https://devnet.helius-rpc.com/?api-key=71be3090-4894-4186-a3dc-ac546716d20e"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
