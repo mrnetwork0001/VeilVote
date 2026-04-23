@@ -1,136 +1,177 @@
 'use client';
 
 import { useState } from 'react';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import * as anchor from '@coral-xyz/anchor';
 import { VOTING_PERIODS } from '@/lib/types';
+import { createProposal, getExplorerLink } from '@/lib/veilvote-client';
 
 interface CreateProposalModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: { title: string; description: string; durationSeconds: number }) => void;
+  onCreated?: () => void;
 }
 
-export default function CreateProposalModal({
-  isOpen,
-  onClose,
-  onSubmit,
-}: CreateProposalModalProps) {
+export default function CreateProposalModal({ isOpen, onClose, onCreated }: CreateProposalModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedPeriod, setSelectedPeriod] = useState(VOTING_PERIODS[2].seconds); // Default: 7 days
+  const [durationIndex, setDurationIndex] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [txSig, setTxSig] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const { connection } = useConnection();
+  const wallet = useWallet();
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim() || !description.trim()) return;
-    onSubmit({ title: title.trim(), description: description.trim(), durationSeconds: selectedPeriod });
-    setTitle('');
-    setDescription('');
-    setSelectedPeriod(VOTING_PERIODS[2].seconds);
-    onClose();
+  const handleSubmit = async () => {
+    if (!title.trim() || !wallet.publicKey || !wallet.signTransaction) return;
+
+    setIsSubmitting(true);
+    setError(null);
+    setTxSig(null);
+
+    try {
+      const anchorWallet = {
+        publicKey: wallet.publicKey,
+        signTransaction: wallet.signTransaction.bind(wallet),
+        signAllTransactions: wallet.signAllTransactions!.bind(wallet),
+      } as anchor.Wallet;
+
+      // Use a random poll ID (0-99999) to avoid collisions
+      const pollId = Math.floor(Math.random() * 100000);
+
+      // Question is limited to 50 chars in the program
+      const question = title.trim().substring(0, 50);
+
+      const sig = await createProposal(connection, anchorWallet, pollId, question);
+      setTxSig(sig);
+
+      // Wait a moment then close
+      setTimeout(() => {
+        setTitle('');
+        setDescription('');
+        setDurationIndex(0);
+        setTxSig(null);
+        onClose();
+        onCreated?.();
+      }, 3000);
+    } catch (err: any) {
+      console.error('Create proposal failed:', err);
+      setError(err?.message || 'Failed to create proposal');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} id="create-proposal-modal">
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Create Proposal</h3>
-          <button className="modal-close" onClick={onClose}>
-            ✕
-          </button>
+          <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            <div className="input-group">
-              <label htmlFor="proposal-title">Title</label>
-              <input
-                id="proposal-title"
-                className="input"
-                type="text"
-                placeholder="e.g., Enable Private Treasury Votes"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                maxLength={80}
-                required
-              />
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textAlign: 'right' }}>
-                {title.length}/80
-              </span>
+        <div className="modal-body">
+          {txSig ? (
+            <div style={{ textAlign: 'center', padding: 'var(--space-xl) 0' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-md)' }}>✅</div>
+              <h4 style={{ marginBottom: 'var(--space-md)' }}>Proposal Created on Solana!</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 'var(--space-md)' }}>
+                Your proposal has been submitted to devnet. MPC is initializing encrypted tallies.
+              </p>
+              <a
+                href={getExplorerLink(txSig)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary btn-sm"
+              >
+                View on Explorer ↗
+              </a>
             </div>
-
-            <div className="input-group">
-              <label htmlFor="proposal-description">Description</label>
-              <textarea
-                id="proposal-description"
-                className="textarea"
-                placeholder="Describe the proposal and why voters should care..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={280}
-                required
-              />
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textAlign: 'right' }}>
-                {description.length}/280
-              </span>
-            </div>
-
-            <div className="input-group">
-              <label>Voting Period</label>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                gap: 'var(--space-sm)',
-              }}>
-                {VOTING_PERIODS.map((period) => (
-                  <button
-                    key={period.seconds}
-                    type="button"
-                    onClick={() => setSelectedPeriod(period.seconds)}
-                    style={{
-                      padding: 'var(--space-md)',
-                      background:
-                        selectedPeriod === period.seconds
-                          ? 'rgba(124, 58, 237, 0.15)'
-                          : 'rgba(15, 15, 35, 0.6)',
-                      border:
-                        selectedPeriod === period.seconds
-                          ? '2px solid var(--accent-primary)'
-                          : '1px solid var(--glass-border)',
-                      borderRadius: 'var(--radius-md)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      color: 'var(--text-primary)',
-                      fontFamily: 'var(--font-body)',
-                      transition: 'all var(--transition-fast)',
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '2px' }}>
-                      {period.label}
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
-                      {period.description}
-                    </div>
-                  </button>
-                ))}
+          ) : (
+            <>
+              <div className="input-group">
+                <label>Proposal Title (max 50 chars)</label>
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="What should the DAO decide?"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  maxLength={50}
+                  disabled={isSubmitting}
+                  id="proposal-title-input"
+                />
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textAlign: 'right' }}>
+                  {title.length}/50
+                </span>
               </div>
-            </div>
-          </div>
 
+              <div className="input-group">
+                <label>Description (for display only)</label>
+                <textarea
+                  className="textarea"
+                  placeholder="Provide context for voters..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  disabled={isSubmitting}
+                  id="proposal-description-input"
+                />
+              </div>
+
+              <div className="input-group">
+                <label>Voting Period</label>
+                <select
+                  className="select"
+                  value={durationIndex}
+                  onChange={(e) => setDurationIndex(Number(e.target.value))}
+                  disabled={isSubmitting}
+                  id="proposal-duration-select"
+                >
+                  {VOTING_PERIODS.map((p, i) => (
+                    <option key={i} value={i}>
+                      {p.label} — {p.description}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {error && (
+                <p style={{ color: 'var(--error)', fontSize: '0.85rem' }}>
+                  ⚠️ {error}
+                </p>
+              )}
+
+              <div style={{
+                padding: 'var(--space-md)',
+                background: 'var(--accent-gradient-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+              }}>
+                🔐 This creates a real on-chain proposal on Solana devnet. Your wallet will sign the transaction. MPC nodes will initialize encrypted vote tallies.
+              </div>
+            </>
+          )}
+        </div>
+
+        {!txSig && (
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+            <button className="btn btn-ghost" onClick={onClose} disabled={isSubmitting}>
               Cancel
             </button>
             <button
-              type="submit"
               className="btn btn-primary"
-              disabled={!title.trim() || !description.trim()}
+              onClick={handleSubmit}
+              disabled={!title.trim() || isSubmitting}
               id="submit-proposal-button"
             >
-              🗳️ Create Proposal
+              {isSubmitting ? '⏳ Submitting...' : '🗳️ Create Proposal'}
             </button>
           </div>
-        </form>
+        )}
       </div>
     </div>
   );

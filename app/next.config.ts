@@ -15,6 +15,8 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
+  // Allow server-side @arcium-hq/client in API routes
+  serverExternalPackages: ['@arcium-hq/client'],
 };
 
 export default nextConfig;
