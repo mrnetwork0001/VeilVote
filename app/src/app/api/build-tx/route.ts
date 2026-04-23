@@ -278,26 +278,66 @@ async function buildRevealResult(
 
 async function fetchPolls(program: anchor.Program, connection: Connection) {
   const accounts = await connection.getProgramAccounts(PROGRAM_PUBKEY);
+  console.log(`[fetchPolls] Found ${accounts.length} total program accounts`);
+
+  // Log available account types from IDL
+  const idlAccounts = (program as any).idl?.accounts;
+  if (idlAccounts) {
+    console.log('[fetchPolls] IDL account types:', idlAccounts.map((a: any) => a.name));
+  }
+
   const polls: any[] = [];
 
   for (const { pubkey, account } of accounts) {
-    try {
-      const decoded = program.coder.accounts.decode('PollAccount', account.data);
-      if (decoded.id !== undefined && decoded.question !== undefined) {
-        polls.push({
-          id: decoded.id,
-          authority: decoded.authority.toBase58(),
-          question: decoded.question,
-          voteState: decoded.voteState,
-          nonce: decoded.nonce.toString(),
-          bump: decoded.bump,
-          pda: pubkey.toBase58(),
-        });
+    // Try multiple possible account name formats
+    const nameVariants = ['PollAccount', 'pollAccount', 'poll_account'];
+    let decoded: any = null;
+
+    for (const name of nameVariants) {
+      try {
+        decoded = program.coder.accounts.decode(name, account.data);
+        if (decoded && decoded.question !== undefined) {
+          console.log(`[fetchPolls] Decoded account ${pubkey.toBase58().slice(0, 8)}... with name "${name}": id=${decoded.id}, q="${decoded.question}"`);
+          break;
+        }
+        decoded = null;
+      } catch {
+        // Not this type
       }
-    } catch {
-      // Not a PollAccount
+    }
+
+    // Also try raw discriminator check: PollAccount disc = sha256("account:PollAccount")[0..8]
+    if (!decoded && account.data.length > 8) {
+      try {
+        // Try decoding without the name — use the first account type in IDL
+        const firstAccountName = idlAccounts?.[0]?.name;
+        if (firstAccountName) {
+          decoded = program.coder.accounts.decode(firstAccountName, account.data);
+          if (decoded && decoded.question !== undefined) {
+            console.log(`[fetchPolls] Decoded with first IDL account name "${firstAccountName}"`);
+          } else {
+            decoded = null;
+          }
+        }
+      } catch {
+        // Not decodable
+      }
+    }
+
+    if (decoded && decoded.id !== undefined && decoded.question !== undefined) {
+      polls.push({
+        id: decoded.id,
+        authority: decoded.authority?.toBase58?.() || decoded.authority,
+        question: decoded.question,
+        voteState: decoded.voteState || [],
+        nonce: decoded.nonce?.toString?.() || '0',
+        bump: decoded.bump || 0,
+        pda: pubkey.toBase58(),
+      });
     }
   }
 
+  console.log(`[fetchPolls] Decoded ${polls.length} polls`);
   return { polls };
 }
+
