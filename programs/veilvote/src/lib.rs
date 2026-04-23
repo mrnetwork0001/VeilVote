@@ -27,10 +27,7 @@ pub mod veilvote {
         msg!("Creating proposal: {}", title);
 
         let clock = Clock::get()?;
-        require!(
-            end_time > clock.unix_timestamp,
-            ErrorCode::InvalidEndTime
-        );
+        require!(end_time > clock.unix_timestamp, ErrorCode::InvalidEndTime);
 
         ctx.accounts.poll_acc.title = title.clone();
         ctx.accounts.poll_acc.description = description;
@@ -44,7 +41,6 @@ pub mod veilvote {
         ctx.accounts.poll_acc.result = false;
 
         let args = ArgBuilder::new().build();
-
         ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
 
         queue_computation(
@@ -89,7 +85,6 @@ pub mod veilvote {
 
         ctx.accounts.poll_acc.vote_state = o.ciphertexts;
         ctx.accounts.poll_acc.nonce = o.nonce;
-
         Ok(())
     }
 
@@ -107,25 +102,15 @@ pub mod veilvote {
         vote_nonce: u128,
     ) -> Result<()> {
         let clock = Clock::get()?;
-        require!(
-            ctx.accounts.poll_acc.status == 0,
-            ErrorCode::ProposalNotActive
-        );
-        require!(
-            clock.unix_timestamp < ctx.accounts.poll_acc.end_time,
-            ErrorCode::VotingPeriodEnded
-        );
+        require!(ctx.accounts.poll_acc.status == 0, ErrorCode::ProposalNotActive);
+        require!(clock.unix_timestamp < ctx.accounts.poll_acc.end_time, ErrorCode::VotingPeriodEnded);
 
         let args = ArgBuilder::new()
             .x25519_pubkey(vote_encryption_pubkey)
             .plaintext_u128(vote_nonce)
             .encrypted_bool(vote)
             .plaintext_u128(ctx.accounts.poll_acc.nonce)
-            .account(
-                ctx.accounts.poll_acc.key(),
-                8 + 1,
-                32 * 2,
-            )
+            .account(ctx.accounts.poll_acc.key(), 8 + 1, 32 * 2)
             .build();
 
         ctx.accounts.voter_record.bump = ctx.bumps.voter_record;
@@ -146,7 +131,6 @@ pub mod veilvote {
             1,
             0,
         )?;
-
         Ok(())
     }
 
@@ -168,13 +152,11 @@ pub mod veilvote {
         ctx.accounts.poll_acc.total_votes += 1;
 
         let clock = Clock::get()?;
-
         emit!(VoteEvent {
             proposal_id: ctx.accounts.poll_acc.id,
             total_votes: ctx.accounts.poll_acc.total_votes,
             timestamp: clock.unix_timestamp,
         });
-
         Ok(())
     }
 
@@ -197,15 +179,10 @@ pub mod veilvote {
 
         let args = ArgBuilder::new()
             .plaintext_u128(ctx.accounts.poll_acc.nonce)
-            .account(
-                ctx.accounts.poll_acc.key(),
-                8 + 1,
-                32 * 2,
-            )
+            .account(ctx.accounts.poll_acc.key(), 8 + 1, 32 * 2)
             .build();
 
         ctx.accounts.sign_pda_account.bump = ctx.bumps.sign_pda_account;
-        ctx.accounts.poll_acc.status = 1;
 
         queue_computation(
             ctx.accounts,
@@ -214,15 +191,11 @@ pub mod veilvote {
             vec![RevealResultCallback::callback_ix(
                 computation_offset,
                 &ctx.accounts.mxe_account,
-                &[CallbackAccount {
-                    pubkey: ctx.accounts.poll_acc.key(),
-                    is_writable: true,
-                }],
+                &[],
             )?],
             1,
             0,
         )?;
-
         Ok(())
     }
 
@@ -239,14 +212,7 @@ pub mod veilvote {
             Err(_) => return Err(ErrorCode::AbortedComputation.into()),
         };
 
-        ctx.accounts.poll_acc.result = o;
-        ctx.accounts.poll_acc.status = 2;
-
-        emit!(RevealResultEvent {
-            proposal_id: ctx.accounts.poll_acc.id,
-            result: o,
-        });
-
+        emit!(RevealResultEvent { result: o });
         Ok(())
     }
 }
@@ -255,6 +221,7 @@ pub mod veilvote {
 // ACCOUNT STRUCTS
 // =============================================================================
 
+#[derive(Accounts)]
 #[instruction(computation_offset: u64, id: u32)]
 pub struct CreateNewPoll<'info> {
     #[account(mut)]
@@ -268,55 +235,30 @@ pub struct CreateNewPoll<'info> {
         address = derive_sign_pda!(),
     )]
     pub sign_pda_account: Account<'info, ArciumSignerAccount>,
-    #[account(
-        address = derive_mxe_pda!()
-    )]
+    #[account(address = derive_mxe_pda!())]
     pub mxe_account: Account<'info, MXEAccount>,
-    #[account(
-        mut,
-        address = derive_mempool_pda!(mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(mut, address = derive_mempool_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     /// CHECK: mempool_account, checked by the arcium program
     pub mempool_account: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        address = derive_execpool_pda!(mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(mut, address = derive_execpool_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     /// CHECK: executing_pool, checked by the arcium program
     pub executing_pool: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        address = derive_comp_pda!(computation_offset, mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(mut, address = derive_comp_pda!(computation_offset, mxe_account, ErrorCode::ClusterNotSet))]
     /// CHECK: computation_account, checked by the arcium program.
     pub computation_account: UncheckedAccount<'info>,
-    #[account(
-        address = derive_comp_def_pda!(COMP_DEF_OFFSET_INIT_VOTE_STATS)
-    )]
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_INIT_VOTE_STATS))]
     pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
-    #[account(
-        mut,
-        address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(mut, address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     pub cluster_account: Account<'info, Cluster>,
-    #[account(
-        mut,
-        address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS,
-    )]
+    #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
     pub pool_account: Account<'info, FeePool>,
-    #[account(
-        mut,
-        address = ARCIUM_CLOCK_ACCOUNT_ADDRESS,
-    )]
+    #[account(mut, address = ARCIUM_CLOCK_ACCOUNT_ADDRESS)]
     pub clock_account: Account<'info, ClockAccount>,
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
     #[account(
-        init,
-        payer = payer,
-        space = 8 + PollAccount::INIT_SPACE,
-        seeds = [b"poll", payer.key().as_ref(), id.to_le_bytes().as_ref()],
-        bump,
+        init, payer = payer, space = 8 + PollAccount::INIT_SPACE,
+        seeds = [b"poll", payer.key().as_ref(), id.to_le_bytes().as_ref()], bump,
     )]
     pub poll_acc: Account<'info, PollAccount>,
 }
@@ -324,24 +266,17 @@ pub struct CreateNewPoll<'info> {
 #[derive(Accounts)]
 pub struct InitVoteStatsCallback<'info> {
     pub arcium_program: Program<'info, Arcium>,
-    #[account(
-        address = derive_comp_def_pda!(COMP_DEF_OFFSET_INIT_VOTE_STATS)
-    )]
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_INIT_VOTE_STATS))]
     pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
-    #[account(
-        address = derive_mxe_pda!()
-    )]
+    #[account(address = derive_mxe_pda!())]
     pub mxe_account: Account<'info, MXEAccount>,
-    /// CHECK: computation_account, checked by arcium program via constraints in the callback context.
+    /// CHECK: computation_account, checked by arcium program via constraints.
     pub computation_account: UncheckedAccount<'info>,
-    #[account(
-        address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     pub cluster_account: Account<'info, Cluster>,
     #[account(address = ::anchor_lang::solana_program::sysvar::instructions::ID)]
     /// CHECK: instructions_sysvar, checked by the account constraint
     pub instructions_sysvar: AccountInfo<'info>,
-    /// CHECK: poll_acc, checked by the callback account key passed in queue_computation
     #[account(mut)]
     pub poll_acc: Account<'info, PollAccount>,
 }
@@ -350,14 +285,10 @@ pub struct InitVoteStatsCallback<'info> {
 pub struct InitVoteStatsCompDef<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(
-        mut,
-        address = derive_mxe_pda!()
-    )]
+    #[account(mut, address = derive_mxe_pda!())]
     pub mxe_account: Box<Account<'info, MXEAccount>>,
     #[account(mut)]
-    /// CHECK: comp_def_account, checked by arcium program.
-    /// Can't check it here as it's not initialized yet.
+    /// CHECK: comp_def_account, checked by arcium program. Not initialized yet.
     pub comp_def_account: UncheckedAccount<'info>,
     #[account(mut, address = derive_mxe_lut_pda!(mxe_account.lut_offset_slot))]
     /// CHECK: address_lookup_table, checked by arcium program.
@@ -369,79 +300,48 @@ pub struct InitVoteStatsCompDef<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
 #[instruction(computation_offset: u64, _id: u32)]
 pub struct CastVote<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(
-        init_if_needed,
-        space = 9,
-        payer = payer,
-        seeds = [&SIGN_PDA_SEED],
-        bump,
-        address = derive_sign_pda!(),
+        init_if_needed, space = 9, payer = payer,
+        seeds = [&SIGN_PDA_SEED], bump, address = derive_sign_pda!(),
     )]
     pub sign_pda_account: Account<'info, ArciumSignerAccount>,
-    #[account(
-        address = derive_mxe_pda!()
-    )]
+    #[account(address = derive_mxe_pda!())]
     pub mxe_account: Box<Account<'info, MXEAccount>>,
-    #[account(
-        mut,
-        address = derive_mempool_pda!(mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(mut, address = derive_mempool_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     /// CHECK: mempool_account, checked by the arcium program
     pub mempool_account: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        address = derive_execpool_pda!(mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(mut, address = derive_execpool_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     /// CHECK: executing_pool, checked by the arcium program
     pub executing_pool: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        address = derive_comp_pda!(computation_offset, mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(mut, address = derive_comp_pda!(computation_offset, mxe_account, ErrorCode::ClusterNotSet))]
     /// CHECK: computation_account, checked by the arcium program.
     pub computation_account: UncheckedAccount<'info>,
-    #[account(
-        address = derive_comp_def_pda!(COMP_DEF_OFFSET_VOTE)
-    )]
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_VOTE))]
     pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
-    #[account(
-        mut,
-        address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(mut, address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     pub cluster_account: Account<'info, Cluster>,
-    #[account(
-        mut,
-        address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS,
-    )]
+    #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
     pub pool_account: Account<'info, FeePool>,
-    #[account(
-        mut,
-        address = ARCIUM_CLOCK_ACCOUNT_ADDRESS,
-    )]
+    #[account(mut, address = ARCIUM_CLOCK_ACCOUNT_ADDRESS)]
     pub clock_account: Account<'info, ClockAccount>,
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
     /// CHECK: Poll authority pubkey
-    #[account(
-        address = poll_acc.authority,
-    )]
+    #[account(address = poll_acc.authority)]
     pub authority: UncheckedAccount<'info>,
     #[account(
         seeds = [b"poll", authority.key().as_ref(), _id.to_le_bytes().as_ref()],
-        bump = poll_acc.bump,
-        has_one = authority
+        bump = poll_acc.bump, has_one = authority
     )]
     pub poll_acc: Box<Account<'info, PollAccount>>,
     #[account(
-        init,
-        payer = payer,
-        space = 8 + VoterRecord::INIT_SPACE,
-        seeds = [b"voter", poll_acc.key().as_ref(), payer.key().as_ref()],
-        bump,
+        init, payer = payer, space = 8 + VoterRecord::INIT_SPACE,
+        seeds = [b"voter", poll_acc.key().as_ref(), payer.key().as_ref()], bump,
     )]
     pub voter_record: Box<Account<'info, VoterRecord>>,
 }
@@ -449,19 +349,13 @@ pub struct CastVote<'info> {
 #[derive(Accounts)]
 pub struct VoteCallback<'info> {
     pub arcium_program: Program<'info, Arcium>,
-    #[account(
-        address = derive_comp_def_pda!(COMP_DEF_OFFSET_VOTE)
-    )]
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_VOTE))]
     pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
-    #[account(
-        address = derive_mxe_pda!()
-    )]
+    #[account(address = derive_mxe_pda!())]
     pub mxe_account: Account<'info, MXEAccount>,
-    /// CHECK: computation_account, checked by arcium program via constraints in the callback context.
+    /// CHECK: computation_account, checked by arcium program via constraints.
     pub computation_account: UncheckedAccount<'info>,
-    #[account(
-        address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     pub cluster_account: Account<'info, Cluster>,
     #[account(address = ::anchor_lang::solana_program::sysvar::instructions::ID)]
     /// CHECK: instructions_sysvar, checked by the account constraint
@@ -474,14 +368,10 @@ pub struct VoteCallback<'info> {
 pub struct InitVoteCompDef<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(
-        mut,
-        address = derive_mxe_pda!()
-    )]
+    #[account(mut, address = derive_mxe_pda!())]
     pub mxe_account: Box<Account<'info, MXEAccount>>,
     #[account(mut)]
-    /// CHECK: comp_def_account, checked by arcium program.
-    /// Can't check it here as it's not initialized yet.
+    /// CHECK: comp_def_account, checked by arcium program. Not initialized yet.
     pub comp_def_account: UncheckedAccount<'info>,
     #[account(mut, address = derive_mxe_lut_pda!(mxe_account.lut_offset_slot))]
     /// CHECK: address_lookup_table, checked by arcium program.
@@ -493,64 +383,38 @@ pub struct InitVoteCompDef<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
 #[instruction(computation_offset: u64, id: u32)]
 pub struct RevealVotingResult<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     #[account(
-        init_if_needed,
-        space = 9,
-        payer = payer,
-        seeds = [&SIGN_PDA_SEED],
-        bump,
-        address = derive_sign_pda!(),
+        init_if_needed, space = 9, payer = payer,
+        seeds = [&SIGN_PDA_SEED], bump, address = derive_sign_pda!(),
     )]
     pub sign_pda_account: Account<'info, ArciumSignerAccount>,
-    #[account(
-        address = derive_mxe_pda!()
-    )]
+    #[account(address = derive_mxe_pda!())]
     pub mxe_account: Account<'info, MXEAccount>,
-    #[account(
-        mut,
-        address = derive_mempool_pda!(mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(mut, address = derive_mempool_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     /// CHECK: mempool_account, checked by the arcium program
     pub mempool_account: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        address = derive_execpool_pda!(mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(mut, address = derive_execpool_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     /// CHECK: executing_pool, checked by the arcium program
     pub executing_pool: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        address = derive_comp_pda!(computation_offset, mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(mut, address = derive_comp_pda!(computation_offset, mxe_account, ErrorCode::ClusterNotSet))]
     /// CHECK: computation_account, checked by the arcium program.
     pub computation_account: UncheckedAccount<'info>,
-    #[account(
-        address = derive_comp_def_pda!(COMP_DEF_OFFSET_REVEAL)
-    )]
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_REVEAL))]
     pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
-    #[account(
-        mut,
-        address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(mut, address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     pub cluster_account: Account<'info, Cluster>,
-    #[account(
-        mut,
-        address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS,
-    )]
+    #[account(mut, address = ARCIUM_FEE_POOL_ACCOUNT_ADDRESS)]
     pub pool_account: Account<'info, FeePool>,
-    #[account(
-        mut,
-        address = ARCIUM_CLOCK_ACCOUNT_ADDRESS,
-    )]
+    #[account(mut, address = ARCIUM_CLOCK_ACCOUNT_ADDRESS)]
     pub clock_account: Account<'info, ClockAccount>,
     pub system_program: Program<'info, System>,
     pub arcium_program: Program<'info, Arcium>,
     #[account(
-        mut,
         seeds = [b"poll", payer.key().as_ref(), id.to_le_bytes().as_ref()],
         bump = poll_acc.bump
     )]
@@ -560,39 +424,27 @@ pub struct RevealVotingResult<'info> {
 #[derive(Accounts)]
 pub struct RevealResultCallback<'info> {
     pub arcium_program: Program<'info, Arcium>,
-    #[account(
-        address = derive_comp_def_pda!(COMP_DEF_OFFSET_REVEAL)
-    )]
+    #[account(address = derive_comp_def_pda!(COMP_DEF_OFFSET_REVEAL))]
     pub comp_def_account: Account<'info, ComputationDefinitionAccount>,
-    #[account(
-        address = derive_mxe_pda!()
-    )]
+    #[account(address = derive_mxe_pda!())]
     pub mxe_account: Account<'info, MXEAccount>,
-    /// CHECK: computation_account, checked by arcium program via constraints in the callback context.
+    /// CHECK: computation_account, checked by arcium program via constraints.
     pub computation_account: UncheckedAccount<'info>,
-    #[account(
-        address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet)
-    )]
+    #[account(address = derive_cluster_pda!(mxe_account, ErrorCode::ClusterNotSet))]
     pub cluster_account: Account<'info, Cluster>,
     #[account(address = ::anchor_lang::solana_program::sysvar::instructions::ID)]
     /// CHECK: instructions_sysvar, checked by the account constraint
     pub instructions_sysvar: AccountInfo<'info>,
-    #[account(mut)]
-    pub poll_acc: Account<'info, PollAccount>,
 }
 
 #[derive(Accounts)]
 pub struct InitRevealResultCompDef<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
-    #[account(
-        mut,
-        address = derive_mxe_pda!()
-    )]
+    #[account(mut, address = derive_mxe_pda!())]
     pub mxe_account: Box<Account<'info, MXEAccount>>,
     #[account(mut)]
-    /// CHECK: comp_def_account, checked by arcium program.
-    /// Can't check it here as it's not initialized yet.
+    /// CHECK: comp_def_account, checked by arcium program. Not initialized yet.
     pub comp_def_account: UncheckedAccount<'info>,
     #[account(mut, address = derive_mxe_lut_pda!(mxe_account.lut_offset_slot))]
     /// CHECK: address_lookup_table, checked by arcium program.
@@ -632,10 +484,6 @@ pub struct VoterRecord {
     pub bump: u8,
 }
 
-// =============================================================================
-// ERRORS
-// =============================================================================
-
 #[error_code]
 pub enum ErrorCode {
     #[msg("Invalid authority")]
@@ -651,10 +499,6 @@ pub enum ErrorCode {
     #[msg("Voting period has ended")]
     VotingPeriodEnded,
 }
-
-// =============================================================================
-// EVENTS
-// =============================================================================
 
 #[event]
 pub struct ProposalCreatedEvent {
@@ -674,6 +518,5 @@ pub struct VoteEvent {
 
 #[event]
 pub struct RevealResultEvent {
-    pub proposal_id: u32,
     pub result: bool,
 }
