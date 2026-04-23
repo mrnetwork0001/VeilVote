@@ -16,7 +16,7 @@ function pollToProposal(poll: OnChainPoll): Proposal {
     description: `On-chain proposal #${poll.id}`,
     authority: poll.authority,
     endTime: Math.floor(Date.now() / 1000) + 86400,
-    totalVotes: 0,
+    totalVotes: poll.totalVotes || 0,
     status: 'active',
     voteState: poll.voteState,
     nonce: poll.nonce,

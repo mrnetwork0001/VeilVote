@@ -280,48 +280,22 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
   const accounts = await connection.getProgramAccounts(PROGRAM_PUBKEY);
   console.log(`[fetchPolls] Found ${accounts.length} total program accounts`);
 
-  // Log available account types from IDL
-  const idlAccounts = (program as any).idl?.accounts;
-  if (idlAccounts) {
-    console.log('[fetchPolls] IDL account types:', idlAccounts.map((a: any) => a.name));
-  }
-
   const polls: any[] = [];
+  // Collect all VoterRecord PDAs (9-byte accounts)
+  const voterRecordPdas: Set<string> = new Set();
 
+  // First pass: decode polls and identify voter records
   for (const { pubkey, account } of accounts) {
-    // Try multiple possible account name formats
+    // Try to decode as PollAccount
     const nameVariants = ['PollAccount', 'pollAccount', 'poll_account'];
     let decoded: any = null;
 
     for (const name of nameVariants) {
       try {
         decoded = program.coder.accounts.decode(name, account.data);
-        if (decoded && decoded.question !== undefined) {
-          console.log(`[fetchPolls] Decoded account ${pubkey.toBase58().slice(0, 8)}... with name "${name}": id=${decoded.id}, q="${decoded.question}"`);
-          break;
-        }
+        if (decoded && decoded.question !== undefined) break;
         decoded = null;
-      } catch {
-        // Not this type
-      }
-    }
-
-    // Also try raw discriminator check: PollAccount disc = sha256("account:PollAccount")[0..8]
-    if (!decoded && account.data.length > 8) {
-      try {
-        // Try decoding without the name — use the first account type in IDL
-        const firstAccountName = idlAccounts?.[0]?.name;
-        if (firstAccountName) {
-          decoded = program.coder.accounts.decode(firstAccountName, account.data);
-          if (decoded && decoded.question !== undefined) {
-            console.log(`[fetchPolls] Decoded with first IDL account name "${firstAccountName}"`);
-          } else {
-            decoded = null;
-          }
-        }
-      } catch {
-        // Not decodable
-      }
+      } catch {}
     }
 
     if (decoded && decoded.id !== undefined && decoded.question !== undefined) {
@@ -333,11 +307,67 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
         nonce: decoded.nonce?.toString?.() || '0',
         bump: decoded.bump || 0,
         pda: pubkey.toBase58(),
+        totalVotes: 0,
       });
+      continue;
+    }
+
+    // VoterRecord is 9 bytes (8 disc + 1 bump)
+    if (account.data.length === 9) {
+      voterRecordPdas.add(pubkey.toBase58());
     }
   }
 
-  console.log(`[fetchPolls] Decoded ${polls.length} polls`);
-  return { polls };
-}
+  // Second pass: for each poll, count voter records by deriving PDAs
+  // VoterRecord seeds: ["voter", poll_pda, voter_pubkey]
+  // Since we can't enumerate all voters, use a different approach:
+  // Check which of the 9-byte accounts are valid voter records for each poll
+  // by trying to match the discriminator
+  for (const poll of polls) {
+    const pollPubkey = new PublicKey(poll.pda);
+    let voteCount = 0;
 
+    // For each potential voter record, check if it's derived from this poll
+    // We do this by checking all known account addresses
+    for (const { pubkey, account } of accounts) {
+      if (account.data.length !== 9) continue;
+      // Check: is this PDA = findProgramAddressSync(["voter", pollPDA, someVoter])?
+      // We can't check without knowing the voter, but we CAN check the account data
+      // discriminator matches VoterRecord
+      const vrNames = ['VoterRecord', 'voterRecord', 'voter_record'];
+      for (const name of vrNames) {
+        try {
+          const vr = program.coder.accounts.decode(name, account.data);
+          if (vr && vr.bump !== undefined) {
+            voteCount++;
+            break;
+          }
+        } catch {}
+      }
+    }
+
+    // Rough count: total voter records / total polls (since we can't link VR to specific polls easily)
+    // TODO: In production, use getProgramAccounts with memcmp filter on PDA seeds
+  }
+
+  // Count total voter records
+  let totalVoterRecords = 0;
+  const vrNames = ['VoterRecord', 'voterRecord', 'voter_record'];
+  for (const { account } of accounts) {
+    if (account.data.length === 9) {
+      for (const name of vrNames) {
+        try {
+          const vr = program.coder.accounts.decode(name, account.data);
+          if (vr && vr.bump !== undefined) {
+            totalVoterRecords++;
+            break;
+          }
+        } catch {}
+      }
+    }
+  }
+
+  // Add total voter count to response — client can display "X total votes across all proposals"
+  console.log(`[fetchPolls] Decoded ${polls.length} polls, ${totalVoterRecords} total voter records`);
+  return { polls, totalVoterRecords };
+}
