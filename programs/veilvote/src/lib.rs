@@ -211,6 +211,7 @@ pub mod veilvote {
     }
 }
 
+#[queue_computation_accounts("init_vote_stats", payer)]
 #[derive(Accounts)]
 #[instruction(computation_offset: u64, id: u32)]
 pub struct CreateNewPoll<'info> {
@@ -278,6 +279,7 @@ pub struct CreateNewPoll<'info> {
     pub poll_acc: Account<'info, PollAccount>,
 }
 
+#[callback_accounts("init_vote_stats")]
 #[derive(Accounts)]
 pub struct InitVoteStatsCallback<'info> {
     pub arcium_program: Program<'info, Arcium>,
@@ -303,6 +305,7 @@ pub struct InitVoteStatsCallback<'info> {
     pub poll_acc: Account<'info, PollAccount>,
 }
 
+#[init_computation_definition_accounts("init_vote_stats", payer)]
 #[derive(Accounts)]
 pub struct InitVoteStatsCompDef<'info> {
     #[account(mut)]
@@ -326,6 +329,7 @@ pub struct InitVoteStatsCompDef<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[queue_computation_accounts("vote", payer)]
 #[derive(Accounts)]
 #[instruction(computation_offset: u64, _id: u32)]
 pub struct Vote<'info> {
@@ -404,6 +408,7 @@ pub struct Vote<'info> {
     pub voter_record: Box<Account<'info, VoterRecord>>,
 }
 
+#[callback_accounts("vote")]
 #[derive(Accounts)]
 pub struct VoteCallback<'info> {
     pub arcium_program: Program<'info, Arcium>,
@@ -428,6 +433,7 @@ pub struct VoteCallback<'info> {
     pub poll_acc: Account<'info, PollAccount>,
 }
 
+#[init_computation_definition_accounts("vote", payer)]
 #[derive(Accounts)]
 pub struct InitVoteCompDef<'info> {
     #[account(mut)]
@@ -451,6 +457,7 @@ pub struct InitVoteCompDef<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[queue_computation_accounts("reveal_result", payer)]
 #[derive(Accounts)]
 #[instruction(computation_offset: u64, id: u32)]
 pub struct RevealVotingResult<'info> {
@@ -515,6 +522,7 @@ pub struct RevealVotingResult<'info> {
     pub poll_acc: Account<'info, PollAccount>,
 }
 
+#[callback_accounts("reveal_result")]
 #[derive(Accounts)]
 pub struct RevealResultCallback<'info> {
     pub arcium_program: Program<'info, Arcium>,
@@ -537,6 +545,7 @@ pub struct RevealResultCallback<'info> {
     pub instructions_sysvar: AccountInfo<'info>,
 }
 
+#[init_computation_definition_accounts("reveal_result", payer)]
 #[derive(Accounts)]
 pub struct InitRevealResultCompDef<'info> {
     #[account(mut)]
