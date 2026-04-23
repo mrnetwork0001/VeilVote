@@ -281,12 +281,8 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
   console.log(`[fetchPolls] Found ${accounts.length} total program accounts`);
 
   const polls: any[] = [];
-  let totalVoterRecords = 0;
-  const vrNames = ['VoterRecord', 'voterRecord', 'voter_record'];
 
   for (const { pubkey, account } of accounts) {
-    // 1. Try to decode as PollAccount
-    let isPoll = false;
     for (const name of ['PollAccount', 'pollAccount', 'poll_account']) {
       try {
         const decoded = program.coder.accounts.decode(name, account.data);
@@ -301,34 +297,40 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
             pda: pubkey.toBase58(),
             totalVotes: 0,
           });
-          isPoll = true;
           break;
         }
       } catch {}
     }
-    if (isPoll) continue;
+  }
 
-    // 2. Try to decode as VoterRecord (9 bytes: 8 disc + 1 bump)
-    if (account.data.length === 9) {
-      for (const name of vrNames) {
-        try {
-          const vr = program.coder.accounts.decode(name, account.data);
-          if (vr && vr.bump !== undefined) {
-            totalVoterRecords++;
-            break;
-          }
-        } catch {}
+  // Count votes per poll: each poll PDA has transaction signatures.
+  // Signature count = 1 (creation) + N (votes) + possibly callbacks
+  // We count signatures and subtract 1 for the creation tx.
+  // This gives us the number of vote + callback interactions.
+  // Since each vote produces 1 vote tx, we approximate: votes ≈ (sigs - 1) / 2
+  // (1 vote tx + 1 callback tx per vote)
+  await Promise.all(
+    polls.map(async (poll) => {
+      try {
+        const sigs = await connection.getSignaturesForAddress(
+          new PublicKey(poll.pda),
+          { limit: 1000 },
+          'confirmed'
+        );
+        // Each vote creates: 1 vote tx + 1 callback tx = 2 sigs
+        // Creation creates: 1 create tx + 1 callback tx = 2 sigs
+        // So: totalVotes = max(0, (sigs.length - 2) / 2)
+        // But callbacks may not always land, so be generous:
+        // Just count confirmed sigs minus the initial creation tx
+        const voteCount = Math.max(0, sigs.length - 2);
+        poll.totalVotes = Math.ceil(voteCount / 2);
+        console.log(`[fetchPolls] Poll ${poll.id}: ${sigs.length} sigs → ${poll.totalVotes} votes`);
+      } catch (err) {
+        console.error(`[fetchPolls] Failed to get sigs for poll ${poll.id}:`, err);
       }
-    }
-  }
+    })
+  );
 
-  // Assign vote counts: since VoterRecord data only has bump (no poll reference),
-  // we show total votes across all proposals on each card.
-  // The actual per-poll count would require enumerating all voter PDAs.
-  for (const poll of polls) {
-    poll.totalVotes = totalVoterRecords;
-  }
-
-  console.log(`[fetchPolls] Decoded ${polls.length} polls, ${totalVoterRecords} voter records`);
-  return { polls, totalVoterRecords };
+  console.log(`[fetchPolls] Decoded ${polls.length} polls`);
+  return { polls };
 }
