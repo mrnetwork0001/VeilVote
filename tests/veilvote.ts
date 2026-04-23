@@ -28,13 +28,10 @@ import * as fs from "fs";
 import * as os from "os";
 import { expect } from "chai";
 
-const ENCRYPTION_KEY_MESSAGE = "veilvote-encryption-key-v1";
+const ENCRYPTION_KEY_MESSAGE = "arcium-veilvote-encryption-key-v1";
 
 /**
  * Derives a deterministic X25519 encryption keypair from a Solana wallet.
- * Signs a fixed message with the wallet's Ed25519 key, then hashes the signature
- * to produce a valid X25519 private key. This allows users to recover their
- * encryption keys from their wallet alone.
  */
 function deriveEncryptionKey(
   wallet: anchor.web3.Keypair,
@@ -50,7 +47,6 @@ function deriveEncryptionKey(
 }
 
 describe("VeilVote", () => {
-  // Configure the client to use the local cluster
   anchor.setProvider(anchor.AnchorProvider.env());
   const program = anchor.workspace.Veilvote as Program<Veilvote>;
   const provider = anchor.getProvider();
@@ -79,8 +75,8 @@ describe("VeilVote", () => {
   const arciumEnv = getArciumEnv();
   const clusterAccount = getClusterAccAddress(arciumEnv.arciumClusterOffset);
 
-  it("can create proposals and vote on them!", async () => {
-    const PROPOSAL_IDS = [1, 2, 3];
+  it("can vote on polls!", async () => {
+    const POLL_IDS = [420, 421, 422];
     const owner = readKpJson(`${os.homedir()}/.config/solana/id.json`);
 
     const mxePublicKey = await getMXEPublicKeyWithRetry(
@@ -90,25 +86,26 @@ describe("VeilVote", () => {
 
     console.log("MXE x25519 pubkey is", mxePublicKey);
 
-    // =========================================================================
-    // Step 1: Initialize all 3 computation definitions (once per instruction)
-    // =========================================================================
-
-    console.log("Initializing init_vote_stats computation definition");
+    console.log("Initializing vote stats computation definition");
     const initVoteStatsSig = await initVoteStatsCompDef(program, owner);
-    console.log("init_vote_stats comp def initialized:", initVoteStatsSig);
+    console.log(
+      "Vote stats computation definition initialized with signature",
+      initVoteStatsSig
+    );
 
-    console.log("Initializing vote computation definition");
+    console.log("Initializing voting computation definition");
     const initVoteSig = await initVoteCompDef(program, owner);
-    console.log("vote comp def initialized:", initVoteSig);
+    console.log(
+      "Vote computation definition initialized with signature",
+      initVoteSig
+    );
 
-    console.log("Initializing reveal_result computation definition");
+    console.log("Initializing reveal result computation definition");
     const initRRSig = await initRevealResultCompDef(program, owner);
-    console.log("reveal_result comp def initialized:", initRRSig);
-
-    // =========================================================================
-    // Step 2: Derive encryption keys
-    // =========================================================================
+    console.log(
+      "Reveal result computation definition initialized with signature",
+      initRRSig
+    );
 
     const { privateKey, publicKey } = deriveEncryptionKey(
       owner,
@@ -117,42 +114,15 @@ describe("VeilVote", () => {
     const sharedSecret = x25519.getSharedSecret(privateKey, mxePublicKey);
     const cipher = new RescueCipher(sharedSecret);
 
-    // =========================================================================
-    // Step 3: Create proposals
-    // =========================================================================
-
-    const proposals = [
-      {
-        id: 1,
-        title: "Enable Private Treasury Votes",
-        description: "Should the DAO adopt encrypted voting for all treasury proposals above 10,000 USDC?",
-        duration: 300, // 5 minutes (demo)
-      },
-      {
-        id: 2,
-        title: "Upgrade Governance Framework",
-        description: "Proposal to migrate from simple majority to quadratic weighted voting on key governance decisions.",
-        duration: 86400, // 24 hours
-      },
-      {
-        id: 3,
-        title: "Community Fund Allocation Q2",
-        description: "Allocate 50,000 tokens from the community treasury to developer grants for Q2 initiatives.",
-        duration: 604800, // 7 days
-      },
-    ];
-
-    for (const prop of proposals) {
+    // Create multiple polls
+    for (const POLL_ID of POLL_IDS) {
       const pollComputationOffset = new anchor.BN(randomBytes(8), "hex");
-      const endTime = Math.floor(Date.now() / 1000) + prop.duration;
 
       const pollSig = await program.methods
-        .createProposal(
+        .createNewPoll(
           pollComputationOffset,
-          prop.id,
-          prop.title,
-          prop.description,
-          new anchor.BN(endTime)
+          POLL_ID,
+          `Poll ${POLL_ID}: $SOL to 500?`
         )
         .accountsPartial({
           computationAccount: getComputationAccAddress(
@@ -175,47 +145,40 @@ describe("VeilVote", () => {
           commitment: "confirmed",
         });
 
-      console.log(`Proposal "${prop.title}" created with signature`, pollSig);
+      console.log(`Poll ${POLL_ID} created with signature`, pollSig);
 
-      const finalizeSig = await awaitComputationFinalization(
+      const finalizePollSig = await awaitComputationFinalization(
         provider as anchor.AnchorProvider,
         pollComputationOffset,
         program.programId,
         "confirmed"
       );
-      console.log(`Proposal ${prop.id} init_vote_stats finalized:`, finalizeSig);
+      console.log(`Finalize poll ${POLL_ID} sig is `, finalizePollSig);
     }
 
-    // =========================================================================
-    // Step 4: Cast votes
-    // =========================================================================
-
-    const voteOutcomes = [true, false, true]; // Different outcomes for each proposal
+    // Cast votes for each poll with different outcomes
+    const voteOutcomes = [true, false, true];
     let firstPollPDA: PublicKey;
     let firstVoterRecordPDA: PublicKey;
-
-    for (let i = 0; i < PROPOSAL_IDS.length; i++) {
-      const PROPOSAL_ID = PROPOSAL_IDS[i];
+    for (let i = 0; i < POLL_IDS.length; i++) {
+      const POLL_ID = POLL_IDS[i];
       const vote = BigInt(voteOutcomes[i]);
       const plaintext = [vote];
 
-      // CRITICAL: Fresh nonce per encryption — never reuse!
       const nonce = randomBytes(16);
       const ciphertext = cipher.encrypt(plaintext, nonce);
 
       const voteEventPromise = awaitEvent("voteEvent");
 
-      console.log(`Voting on proposal ${PROPOSAL_ID}`);
+      console.log(`Voting for poll ${POLL_ID}`);
 
-      // Derive poll PDA
       const pollIdBuffer = Buffer.alloc(4);
-      pollIdBuffer.writeUInt32LE(PROPOSAL_ID);
+      pollIdBuffer.writeUInt32LE(POLL_ID);
       const [pollPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from("poll"), owner.publicKey.toBuffer(), pollIdBuffer],
         program.programId
       );
 
-      // Derive voter record PDA (prevents double voting)
       const [voterRecordPDA] = PublicKey.findProgramAddressSync(
         [Buffer.from("voter"), pollPDA.toBuffer(), owner.publicKey.toBuffer()],
         program.programId
@@ -229,9 +192,9 @@ describe("VeilVote", () => {
       const voteComputationOffset = new anchor.BN(randomBytes(8), "hex");
 
       const queueVoteSig = await program.methods
-        .castVote(
+        .vote(
           voteComputationOffset,
-          PROPOSAL_ID,
+          POLL_ID,
           Array.from(ciphertext[0]),
           Array.from(publicKey),
           new anchor.BN(deserializeLE(nonce).toString())
@@ -259,7 +222,7 @@ describe("VeilVote", () => {
           skipPreflight: true,
           commitment: "confirmed",
         });
-      console.log(`Vote queued for proposal ${PROPOSAL_ID}:`, queueVoteSig);
+      console.log(`Queue vote for poll ${POLL_ID} sig is `, queueVoteSig);
 
       const finalizeSig = await awaitComputationFinalization(
         provider as anchor.AnchorProvider,
@@ -267,21 +230,18 @@ describe("VeilVote", () => {
         program.programId,
         "confirmed"
       );
-      console.log(`Vote finalized for proposal ${PROPOSAL_ID}:`, finalizeSig);
+      console.log(`Finalize vote for poll ${POLL_ID} sig is `, finalizeSig);
 
       const voteEvent = await voteEventPromise;
       console.log(
-        `Vote cast on proposal ${PROPOSAL_ID} at timestamp`,
+        `Vote casted for poll ${POLL_ID} at timestamp `,
         voteEvent.timestamp.toString()
       );
     }
 
-    // =========================================================================
-    // Step 5: Test double-vote prevention
-    // =========================================================================
-
+    // Test double-vote prevention
     console.log("\n--- Testing double-vote prevention ---");
-    const DOUBLE_VOTE_PROPOSAL_ID = PROPOSAL_IDS[0];
+    const DOUBLE_VOTE_POLL_ID = POLL_IDS[0];
     const doubleVoteNonce = randomBytes(16);
     const doubleVoteCiphertext = cipher.encrypt(
       [BigInt(true)],
@@ -292,9 +252,9 @@ describe("VeilVote", () => {
 
     try {
       await program.methods
-        .castVote(
+        .vote(
           doubleVoteComputationOffset,
-          DOUBLE_VOTE_PROPOSAL_ID,
+          DOUBLE_VOTE_POLL_ID,
           Array.from(doubleVoteCiphertext[0]),
           Array.from(publicKey),
           new anchor.BN(deserializeLE(doubleVoteNonce).toString())
@@ -315,8 +275,8 @@ describe("VeilVote", () => {
             Buffer.from(getCompDefAccOffset("vote")).readUInt32LE()
           ),
           authority: owner.publicKey,
-          pollAcc: firstPollPDA!,
-          voterRecord: firstVoterRecordPDA!,
+          pollAcc: firstPollPDA,
+          voterRecord: firstVoterRecordPDA,
         })
         .rpc({
           preflightCommitment: "confirmed",
@@ -324,19 +284,16 @@ describe("VeilVote", () => {
         });
 
       expect.fail("Double vote should have been rejected");
-    } catch (error: any) {
+    } catch (error) {
       console.log("Double vote correctly rejected:", error.message);
       expect(error.message).to.satisfy(
         (msg: string) => msg.includes("already in use") || msg.includes("0x0")
       );
     }
 
-    // =========================================================================
-    // Step 6: Reveal results
-    // =========================================================================
-
-    for (let i = 0; i < PROPOSAL_IDS.length; i++) {
-      const PROPOSAL_ID = PROPOSAL_IDS[i];
+    // Reveal results for each poll
+    for (let i = 0; i < POLL_IDS.length; i++) {
+      const POLL_ID = POLL_IDS[i];
       const expectedOutcome = voteOutcomes[i];
 
       const revealEventPromise = awaitEvent("revealResultEvent");
@@ -344,7 +301,7 @@ describe("VeilVote", () => {
       const revealComputationOffset = new anchor.BN(randomBytes(8), "hex");
 
       const revealQueueSig = await program.methods
-        .revealResult(revealComputationOffset, PROPOSAL_ID)
+        .revealResult(revealComputationOffset, POLL_ID)
         .accountsPartial({
           computationAccount: getComputationAccAddress(
             arciumEnv.arciumClusterOffset,
@@ -365,7 +322,7 @@ describe("VeilVote", () => {
           skipPreflight: true,
           commitment: "confirmed",
         });
-      console.log(`Reveal queued for proposal ${PROPOSAL_ID}:`, revealQueueSig);
+      console.log(`Reveal queue for poll ${POLL_ID} sig is `, revealQueueSig);
 
       const revealFinalizeSig = await awaitComputationFinalization(
         provider as anchor.AnchorProvider,
@@ -374,22 +331,18 @@ describe("VeilVote", () => {
         "confirmed"
       );
       console.log(
-        `Reveal finalized for proposal ${PROPOSAL_ID}:`,
+        `Reveal finalize for poll ${POLL_ID} sig is `,
         revealFinalizeSig
       );
 
       const revealEvent = await revealEventPromise;
       console.log(
-        `Result for proposal ${PROPOSAL_ID}:`,
-        revealEvent.result ? "YES won" : "NO won"
+        `Decrypted winner for poll ${POLL_ID} is `,
+        revealEvent.output
       );
-      expect(revealEvent.result).to.equal(expectedOutcome);
+      expect(revealEvent.output).to.equal(expectedOutcome);
     }
   });
-
-  // ===========================================================================
-  // HELPER FUNCTIONS: Comp Def Initialization + Circuit Upload
-  // ===========================================================================
 
   async function initVoteStatsCompDef(
     program: Program<Veilvote>,
@@ -405,7 +358,10 @@ describe("VeilVote", () => {
       getArciumProgramId()
     )[0];
 
-    console.log("init_vote_stats comp def PDA:", compDefPDA.toBase58());
+    console.log(
+      "Init vote stats computation definition pda is ",
+      compDefPDA.toBase58()
+    );
 
     const arciumProgram = getArciumProgram(provider as anchor.AnchorProvider);
     const mxeAccount = getMXEAccAddress(program.programId);
@@ -428,6 +384,7 @@ describe("VeilVote", () => {
         preflightCommitment: "confirmed",
         commitment: "confirmed",
       });
+    console.log("Init vote stats computation definition transaction", sig);
 
     const rawCircuit = fs.readFileSync("build/init_vote_stats.arcis");
     await uploadCircuit(
@@ -455,7 +412,7 @@ describe("VeilVote", () => {
       getArciumProgramId()
     )[0];
 
-    console.log("vote comp def PDA:", compDefPDA.toBase58());
+    console.log("Vote computation definition pda is ", compDefPDA.toBase58());
 
     const arciumProgram = getArciumProgram(provider as anchor.AnchorProvider);
     const mxeAccount = getMXEAccAddress(program.programId);
@@ -478,6 +435,7 @@ describe("VeilVote", () => {
         preflightCommitment: "confirmed",
         commitment: "confirmed",
       });
+    console.log("Init vote computation definition transaction", sig);
 
     const rawCircuit = fs.readFileSync("build/vote.arcis");
     await uploadCircuit(
@@ -505,7 +463,10 @@ describe("VeilVote", () => {
       getArciumProgramId()
     )[0];
 
-    console.log("reveal_result comp def PDA:", compDefPDA.toBase58());
+    console.log(
+      "Reveal result computation definition pda is ",
+      compDefPDA.toBase58()
+    );
 
     const arciumProgram = getArciumProgram(provider as anchor.AnchorProvider);
     const mxeAccount = getMXEAccAddress(program.programId);
@@ -528,6 +489,7 @@ describe("VeilVote", () => {
         preflightCommitment: "confirmed",
         commitment: "confirmed",
       });
+    console.log("Init reveal result computation definition transaction", sig);
 
     const rawCircuit = fs.readFileSync("build/reveal_result.arcis");
     await uploadCircuit(
@@ -541,10 +503,6 @@ describe("VeilVote", () => {
     return sig;
   }
 });
-
-// =============================================================================
-// UTILITIES
-// =============================================================================
 
 async function getMXEPublicKeyWithRetry(
   provider: anchor.AnchorProvider,
