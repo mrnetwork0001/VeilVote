@@ -281,79 +281,34 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
   console.log(`[fetchPolls] Found ${accounts.length} total program accounts`);
 
   const polls: any[] = [];
-  // Collect all VoterRecord PDAs (9-byte accounts)
-  const voterRecordPdas: Set<string> = new Set();
-
-  // First pass: decode polls and identify voter records
-  for (const { pubkey, account } of accounts) {
-    // Try to decode as PollAccount
-    const nameVariants = ['PollAccount', 'pollAccount', 'poll_account'];
-    let decoded: any = null;
-
-    for (const name of nameVariants) {
-      try {
-        decoded = program.coder.accounts.decode(name, account.data);
-        if (decoded && decoded.question !== undefined) break;
-        decoded = null;
-      } catch {}
-    }
-
-    if (decoded && decoded.id !== undefined && decoded.question !== undefined) {
-      polls.push({
-        id: decoded.id,
-        authority: decoded.authority?.toBase58?.() || decoded.authority,
-        question: decoded.question,
-        voteState: decoded.voteState || [],
-        nonce: decoded.nonce?.toString?.() || '0',
-        bump: decoded.bump || 0,
-        pda: pubkey.toBase58(),
-        totalVotes: 0,
-      });
-      continue;
-    }
-
-    // VoterRecord is 9 bytes (8 disc + 1 bump)
-    if (account.data.length === 9) {
-      voterRecordPdas.add(pubkey.toBase58());
-    }
-  }
-
-  // Second pass: for each poll, count voter records by deriving PDAs
-  // VoterRecord seeds: ["voter", poll_pda, voter_pubkey]
-  // Since we can't enumerate all voters, use a different approach:
-  // Check which of the 9-byte accounts are valid voter records for each poll
-  // by trying to match the discriminator
-  for (const poll of polls) {
-    const pollPubkey = new PublicKey(poll.pda);
-    let voteCount = 0;
-
-    // For each potential voter record, check if it's derived from this poll
-    // We do this by checking all known account addresses
-    for (const { pubkey, account } of accounts) {
-      if (account.data.length !== 9) continue;
-      // Check: is this PDA = findProgramAddressSync(["voter", pollPDA, someVoter])?
-      // We can't check without knowing the voter, but we CAN check the account data
-      // discriminator matches VoterRecord
-      const vrNames = ['VoterRecord', 'voterRecord', 'voter_record'];
-      for (const name of vrNames) {
-        try {
-          const vr = program.coder.accounts.decode(name, account.data);
-          if (vr && vr.bump !== undefined) {
-            voteCount++;
-            break;
-          }
-        } catch {}
-      }
-    }
-
-    // Rough count: total voter records / total polls (since we can't link VR to specific polls easily)
-    // TODO: In production, use getProgramAccounts with memcmp filter on PDA seeds
-  }
-
-  // Count total voter records
   let totalVoterRecords = 0;
   const vrNames = ['VoterRecord', 'voterRecord', 'voter_record'];
-  for (const { account } of accounts) {
+
+  for (const { pubkey, account } of accounts) {
+    // 1. Try to decode as PollAccount
+    let isPoll = false;
+    for (const name of ['PollAccount', 'pollAccount', 'poll_account']) {
+      try {
+        const decoded = program.coder.accounts.decode(name, account.data);
+        if (decoded && decoded.question !== undefined) {
+          polls.push({
+            id: decoded.id,
+            authority: decoded.authority?.toBase58?.() || decoded.authority,
+            question: decoded.question,
+            voteState: decoded.voteState || [],
+            nonce: decoded.nonce?.toString?.() || '0',
+            bump: decoded.bump || 0,
+            pda: pubkey.toBase58(),
+            totalVotes: 0,
+          });
+          isPoll = true;
+          break;
+        }
+      } catch {}
+    }
+    if (isPoll) continue;
+
+    // 2. Try to decode as VoterRecord (9 bytes: 8 disc + 1 bump)
     if (account.data.length === 9) {
       for (const name of vrNames) {
         try {
@@ -367,7 +322,13 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
     }
   }
 
-  // Add total voter count to response — client can display "X total votes across all proposals"
-  console.log(`[fetchPolls] Decoded ${polls.length} polls, ${totalVoterRecords} total voter records`);
+  // Assign vote counts: since VoterRecord data only has bump (no poll reference),
+  // we show total votes across all proposals on each card.
+  // The actual per-poll count would require enumerating all voter PDAs.
+  for (const poll of polls) {
+    poll.totalVotes = totalVoterRecords;
+  }
+
+  console.log(`[fetchPolls] Decoded ${polls.length} polls, ${totalVoterRecords} voter records`);
   return { polls, totalVoterRecords };
 }
