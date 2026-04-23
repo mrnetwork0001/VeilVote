@@ -10,13 +10,15 @@ import { fetchAllPolls, type OnChainPoll } from '@/lib/veilvote-client';
 type FilterTab = 'all' | ProposalStatus;
 
 function pollToProposal(poll: OnChainPoll): Proposal {
+  // Use real creation time if available, otherwise use now
+  const createdAt = poll.createdAt || Math.floor(Date.now() / 1000);
+  
   return {
     id: poll.id,
     title: poll.question,
     description: `On-chain proposal #${poll.id}`,
     authority: poll.authority,
-    endTime: Math.floor(Date.now() / 1000) + 86400,
-    totalVotes: poll.totalVotes || 0,
+    createdAt,
     status: 'active',
     voteState: poll.voteState,
     nonce: poll.nonce,

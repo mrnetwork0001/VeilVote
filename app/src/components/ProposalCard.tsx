@@ -3,10 +3,18 @@
 import Link from 'next/link';
 import type { Proposal } from '@/lib/types';
 import { shortenAddress } from '@/lib/program';
-import CountdownTimer from './CountdownTimer';
 
 interface ProposalCardProps {
   proposal: Proposal;
+}
+
+function timeAgo(unixSeconds: number): string {
+  const now = Math.floor(Date.now() / 1000);
+  const diff = now - unixSeconds;
+  if (diff < 60) return 'Just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
 }
 
 export default function ProposalCard({ proposal }: ProposalCardProps) {
@@ -29,14 +37,16 @@ export default function ProposalCard({ proposal }: ProposalCardProps) {
         <div className="proposal-card-footer">
           <div className="proposal-meta">
             <span className="proposal-meta-item">
-              🗳️ {proposal.totalVotes} votes
+              🔐 Encrypted votes
             </span>
             <span className="proposal-meta-item">
               👤 {shortenAddress(proposal.authority)}
             </span>
           </div>
           {proposal.status === 'active' ? (
-            <CountdownTimer endTime={proposal.endTime} compact />
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+              {proposal.createdAt > 0 ? timeAgo(proposal.createdAt) : 'Active'}
+            </span>
           ) : proposal.status === 'revealed' ? (
             <span
               style={{

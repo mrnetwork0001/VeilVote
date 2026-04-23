@@ -276,10 +276,6 @@ async function buildRevealResult(
 // Fetch Polls
 // ---------------------------------------------------------------------------
 
-// Vote count reset: only count signatures AFTER this Unix timestamp.
-// Change this value to "reset" vote counts at any time.
-const VOTE_COUNT_RESET_TIME = 1745422980; // Apr 23, 2026 ~16:43 UTC
-
 async function fetchPolls(program: anchor.Program, connection: Connection) {
   const accounts = await connection.getProgramAccounts(PROGRAM_PUBKEY);
   console.log(`[fetchPolls] Found ${accounts.length} total program accounts`);
@@ -299,7 +295,7 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
             nonce: decoded.nonce?.toString?.() || '0',
             bump: decoded.bump || 0,
             pda: pubkey.toBase58(),
-            totalVotes: 0,
+            createdAt: 0, // will be filled below
           });
           break;
         }
@@ -307,30 +303,19 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
     }
   }
 
-  // Count votes per poll using transaction signatures on the poll PDA.
-  // Only count signatures after VOTE_COUNT_RESET_TIME to exclude old test votes.
+  // Get creation timestamp for each poll (oldest signature on the PDA)
   await Promise.all(
     polls.map(async (poll) => {
       try {
         const sigs = await connection.getSignaturesForAddress(
           new PublicKey(poll.pda),
-          { limit: 1000 },
+          { limit: 1 },  // only need the oldest
           'confirmed'
         );
-        // Filter: only count sigs after the reset cutoff
-        const recentSigs = sigs.filter(
-          (s) => s.blockTime && s.blockTime > VOTE_COUNT_RESET_TIME
-        );
-        // Each vote = 1 vote tx (+ possibly 1 callback tx)
-        // Creation = 1 create tx (+ possibly 1 callback tx)
-        // Subtract 2 for creation pair, divide by 2 for vote+callback pairs
-        const creationSigs = recentSigs.length >= 2 ? 2 : recentSigs.length;
-        const voteCount = Math.max(0, recentSigs.length - creationSigs);
-        poll.totalVotes = Math.ceil(voteCount / 2);
-        console.log(`[fetchPolls] Poll ${poll.id}: ${recentSigs.length} recent sigs → ${poll.totalVotes} votes`);
-      } catch (err) {
-        console.error(`[fetchPolls] Failed to get sigs for poll ${poll.id}:`, err);
-      }
+        if (sigs.length > 0 && sigs[0].blockTime) {
+          poll.createdAt = sigs[0].blockTime;
+        }
+      } catch {}
     })
   );
 

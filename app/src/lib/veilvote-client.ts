@@ -64,7 +64,7 @@ export interface OnChainPoll {
   nonce: string;
   bump: number;
   pda: string;
-  totalVotes: number;
+  createdAt: number;
 }
 
 export async function fetchAllPolls(connection: Connection): Promise<OnChainPoll[]> {
