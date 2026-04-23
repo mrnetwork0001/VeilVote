@@ -33,13 +33,10 @@ const PROGRAM_ID = 'B9xuJHLGqgb2szy76qBUiXrAFpYgx4g7aUZrEDimsRFk';
 const PROGRAM_PUBKEY = new PublicKey(PROGRAM_ID);
 const CLUSTER_OFFSET = 456;
 
-// Cache the IDL
+// Cache the IDL only (not the program, since connection changes per request)
 let cachedIdl: any = null;
-let cachedProgram: anchor.Program | null = null;
 
 async function getProgram(connection: Connection): Promise<anchor.Program> {
-  if (cachedProgram) return cachedProgram;
-
   const dummyWallet = {
     publicKey: PublicKey.default,
     signTransaction: async (tx: any) => tx,
@@ -51,13 +48,14 @@ async function getProgram(connection: Connection): Promise<anchor.Program> {
   });
 
   if (!cachedIdl) {
+    console.log('[build-tx] Fetching IDL from chain...');
     cachedIdl = await anchor.Program.fetchIdl(PROGRAM_PUBKEY, provider);
-    if (!cachedIdl) throw new Error('Failed to fetch IDL');
+    if (!cachedIdl) throw new Error('Failed to fetch VeilVote IDL from devnet');
     cachedIdl.address = PROGRAM_ID;
+    console.log('[build-tx] IDL fetched. Instructions:', cachedIdl.instructions?.map((i: any) => i.name));
   }
 
-  cachedProgram = new anchor.Program(cachedIdl, provider);
-  return cachedProgram;
+  return new anchor.Program(cachedIdl, provider);
 }
 
 export async function POST(request: NextRequest) {
@@ -131,18 +129,21 @@ async function buildCreateProposal(
     })
     .instruction();
 
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-  const tx = new Transaction({
-    recentBlockhash: blockhash,
-    feePayer: payer,
-    lastValidBlockHeight,
-  });
+  const bhInfo = await connection.getLatestBlockhash('confirmed');
+  const tx = new Transaction();
+  tx.recentBlockhash = bhInfo.blockhash;
+  tx.feePayer = payer;
   tx.add(ix);
 
+  const serialized = tx.serialize({
+    requireAllSignatures: false,
+    verifySignatures: false,
+  });
+
   return {
-    transaction: tx.serialize({ requireAllSignatures: false }).toString('base64'),
-    blockhash,
-    lastValidBlockHeight,
+    transaction: serialized.toString('base64'),
+    blockhash: bhInfo.blockhash,
+    lastValidBlockHeight: bhInfo.lastValidBlockHeight,
   };
 }
 
@@ -213,18 +214,21 @@ async function buildVote(
     })
     .instruction();
 
-  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
-  const tx = new Transaction({
-    recentBlockhash: blockhash,
-    feePayer: payer,
-    lastValidBlockHeight,
-  });
+  const bhInfo = await connection.getLatestBlockhash('confirmed');
+  const tx = new Transaction();
+  tx.recentBlockhash = bhInfo.blockhash;
+  tx.feePayer = payer;
   tx.add(ix);
 
+  const serialized = tx.serialize({
+    requireAllSignatures: false,
+    verifySignatures: false,
+  });
+
   return {
-    transaction: tx.serialize({ requireAllSignatures: false }).toString('base64'),
-    blockhash,
-    lastValidBlockHeight,
+    transaction: serialized.toString('base64'),
+    blockhash: bhInfo.blockhash,
+    lastValidBlockHeight: bhInfo.lastValidBlockHeight,
   };
 }
 
