@@ -1,8 +1,11 @@
 import Link from 'next/link';
+import DeploymentBanner from '@/components/DeploymentBanner';
 
 export default function Home() {
   return (
     <div className="page-content">
+      {/* Live Deployment Banner */}
+      <DeploymentBanner />
       {/* Hero Section */}
       <section className="hero container">
         <div className="hero-badge">
@@ -231,7 +234,7 @@ export default function Home() {
         <p style={{ marginTop: 'var(--space-sm)' }}>
           VeilVote © {new Date().getFullYear()} · MIT License ·{' '}
           <a
-            href="https://github.com"
+            href="https://github.com/mrnetwork0001/VeilVote"
             target="_blank"
             rel="noopener noreferrer"
           >
