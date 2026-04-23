@@ -30,7 +30,7 @@ export default function ProposalsPage() {
   const [filter, setFilter] = useState<FilterTab>('all');
   const [showModal, setShowModal] = useState(false);
   const [proposals, setProposals] = useState<Proposal[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadProposals = useCallback(async () => {
@@ -38,22 +38,23 @@ export default function ProposalsPage() {
     setError(null);
 
     try {
+      console.log('[ProposalsPage] Fetching proposals from API...');
       const polls = await fetchAllPolls(connection);
+      console.log('[ProposalsPage] Got polls:', polls.length, polls);
       const mappedProposals = polls.map(pollToProposal);
       setProposals(mappedProposals);
     } catch (err: any) {
-      console.error('Failed to fetch proposals:', err);
+      console.error('[ProposalsPage] Failed to fetch proposals:', err);
       setError(err?.message || 'Failed to fetch proposals from devnet');
     } finally {
       setLoading(false);
     }
   }, [connection]);
 
+  // Load proposals on mount — no wallet required for reading
   useEffect(() => {
-    if (connected) {
-      loadProposals();
-    }
-  }, [connected, loadProposals]);
+    loadProposals();
+  }, [loadProposals]);
 
   const filteredProposals = proposals.filter((p) => {
     if (filter === 'all') return true;
@@ -76,17 +77,15 @@ export default function ProposalsPage() {
               Governance Proposals
             </h1>
             <p style={{ color: 'var(--text-secondary)' }}>
-              {connected
-                ? `${proposals.length} proposals on devnet. All votes encrypted via Arcium MPC.`
-                : 'Connect your wallet to browse and create proposals on Solana devnet.'}
+              {proposals.length > 0
+                ? `${proposals.length} proposals on Solana devnet. All votes encrypted via Arcium MPC.`
+                : 'Loading proposals from Solana devnet...'}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center' }}>
-            {connected && (
-              <button className="btn btn-ghost btn-sm" onClick={loadProposals} disabled={loading}>
-                🔄 Refresh
-              </button>
-            )}
+            <button className="btn btn-ghost btn-sm" onClick={loadProposals} disabled={loading}>
+              🔄 Refresh
+            </button>
             <button
               className="btn btn-primary"
               onClick={() => setShowModal(true)}
@@ -115,13 +114,7 @@ export default function ProposalsPage() {
           ))}
         </div>
 
-        {!connected ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">🔗</div>
-            <h3>Connect Your Wallet</h3>
-            <p>Connect a Solana wallet (Phantom, Solflare) to view on-chain proposals.</p>
-          </div>
-        ) : loading ? (
+        {loading ? (
           <div className="empty-state">
             <div className="empty-state-icon" style={{ animation: 'pulse-dot 1.5s infinite' }}>⏳</div>
             <h3>Loading from Devnet...</h3>
@@ -140,14 +133,9 @@ export default function ProposalsPage() {
             <h3>No proposals found</h3>
             <p>
               {filter === 'all'
-                ? 'No proposals on devnet yet. Create the first one!'
+                ? 'No proposals on devnet yet. Connect wallet & create the first one!'
                 : `No ${filter} proposals at the moment.`}
             </p>
-            {filter === 'all' && (
-              <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-                Create First Proposal
-              </button>
-            )}
           </div>
         ) : (
           <div className="proposals-grid stagger-children">
