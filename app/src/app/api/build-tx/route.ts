@@ -276,6 +276,10 @@ async function buildRevealResult(
 // Fetch Polls
 // ---------------------------------------------------------------------------
 
+// Vote count reset: only count signatures AFTER this Unix timestamp.
+// Change this value to "reset" vote counts at any time.
+const VOTE_COUNT_RESET_TIME = 1745422980; // Apr 23, 2026 ~16:43 UTC
+
 async function fetchPolls(program: anchor.Program, connection: Connection) {
   const accounts = await connection.getProgramAccounts(PROGRAM_PUBKEY);
   console.log(`[fetchPolls] Found ${accounts.length} total program accounts`);
@@ -303,12 +307,8 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
     }
   }
 
-  // Count votes per poll: each poll PDA has transaction signatures.
-  // Signature count = 1 (creation) + N (votes) + possibly callbacks
-  // We count signatures and subtract 1 for the creation tx.
-  // This gives us the number of vote + callback interactions.
-  // Since each vote produces 1 vote tx, we approximate: votes ≈ (sigs - 1) / 2
-  // (1 vote tx + 1 callback tx per vote)
+  // Count votes per poll using transaction signatures on the poll PDA.
+  // Only count signatures after VOTE_COUNT_RESET_TIME to exclude old test votes.
   await Promise.all(
     polls.map(async (poll) => {
       try {
@@ -317,14 +317,17 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
           { limit: 1000 },
           'confirmed'
         );
-        // Each vote creates: 1 vote tx + 1 callback tx = 2 sigs
-        // Creation creates: 1 create tx + 1 callback tx = 2 sigs
-        // So: totalVotes = max(0, (sigs.length - 2) / 2)
-        // But callbacks may not always land, so be generous:
-        // Just count confirmed sigs minus the initial creation tx
-        const voteCount = Math.max(0, sigs.length - 2);
+        // Filter: only count sigs after the reset cutoff
+        const recentSigs = sigs.filter(
+          (s) => s.blockTime && s.blockTime > VOTE_COUNT_RESET_TIME
+        );
+        // Each vote = 1 vote tx (+ possibly 1 callback tx)
+        // Creation = 1 create tx (+ possibly 1 callback tx)
+        // Subtract 2 for creation pair, divide by 2 for vote+callback pairs
+        const creationSigs = recentSigs.length >= 2 ? 2 : recentSigs.length;
+        const voteCount = Math.max(0, recentSigs.length - creationSigs);
         poll.totalVotes = Math.ceil(voteCount / 2);
-        console.log(`[fetchPolls] Poll ${poll.id}: ${sigs.length} sigs → ${poll.totalVotes} votes`);
+        console.log(`[fetchPolls] Poll ${poll.id}: ${recentSigs.length} recent sigs → ${poll.totalVotes} votes`);
       } catch (err) {
         console.error(`[fetchPolls] Failed to get sigs for poll ${poll.id}:`, err);
       }
