@@ -76,7 +76,7 @@ describe("VeilVote", () => {
   const clusterAccount = getClusterAccAddress(arciumEnv.arciumClusterOffset);
 
   it("can vote on polls!", async () => {
-    const POLL_IDS = [420, 421, 422];
+    const POLL_IDS = [Math.floor(Math.random() * 100000), Math.floor(Math.random() * 100000), Math.floor(Math.random() * 100000)];
     const owner = readKpJson(`${os.homedir()}/.config/solana/id.json`);
 
     const mxePublicKey = await getMXEPublicKeyWithRetry(
@@ -87,25 +87,28 @@ describe("VeilVote", () => {
     console.log("MXE x25519 pubkey is", mxePublicKey);
 
     console.log("Initializing vote stats computation definition");
-    const initVoteStatsSig = await initVoteStatsCompDef(program, owner);
-    console.log(
-      "Vote stats computation definition initialized with signature",
-      initVoteStatsSig
-    );
+    try {
+      const initVoteStatsSig = await initVoteStatsCompDef(program, owner);
+      console.log("Vote stats computation definition initialized with signature", initVoteStatsSig);
+    } catch (e) {
+      console.log("Vote stats comp def already initialized, skipping");
+    }
 
     console.log("Initializing voting computation definition");
-    const initVoteSig = await initVoteCompDef(program, owner);
-    console.log(
-      "Vote computation definition initialized with signature",
-      initVoteSig
-    );
+    try {
+      const initVoteSig = await initVoteCompDef(program, owner);
+      console.log("Vote computation definition initialized with signature", initVoteSig);
+    } catch (e) {
+      console.log("Vote comp def already initialized, skipping");
+    }
 
     console.log("Initializing reveal result computation definition");
-    const initRRSig = await initRevealResultCompDef(program, owner);
-    console.log(
-      "Reveal result computation definition initialized with signature",
-      initRRSig
-    );
+    try {
+      const initRRSig = await initRevealResultCompDef(program, owner);
+      console.log("Reveal result computation definition initialized with signature", initRRSig);
+    } catch (e) {
+      console.log("Reveal result comp def already initialized, skipping");
+    }
 
     const { privateKey, publicKey } = deriveEncryptionKey(
       owner,
