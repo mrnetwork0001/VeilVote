@@ -137,6 +137,8 @@ export async function getProgram(
   if (!cachedIdl) {
     cachedIdl = await anchor.Program.fetchIdl(PROGRAM_PUBKEY, provider);
     if (!cachedIdl) throw new Error('Failed to fetch VeilVote IDL from devnet');
+    // Inject the program address into the IDL (fetchIdl doesn't always include it)
+    cachedIdl.address = PROGRAM_ID;
   }
 
   return new anchor.Program(cachedIdl, provider);
