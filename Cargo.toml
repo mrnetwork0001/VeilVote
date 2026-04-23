@@ -5,6 +5,9 @@ members = [
 ]
 resolver = "2"
 
+[workspace.dependencies]
+indexmap = "=2.7.1"
+
 [profile.release]
 overflow-checks = true
 lto = "fat"
