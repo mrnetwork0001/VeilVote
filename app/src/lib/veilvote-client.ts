@@ -25,7 +25,11 @@ function textToBytes(text: string): Buffer {
 
 function u64ToLeBytes(n: number): Buffer {
   const buf = Buffer.alloc(8);
-  buf.writeBigUInt64LE(BigInt(n));
+  let val = n;
+  for (let i = 0; i < 8; i++) {
+    buf[i] = val & 0xff;
+    val = Math.floor(val / 256);
+  }
   return buf;
 }
 
