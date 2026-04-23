@@ -86,28 +86,44 @@ describe("VeilVote", () => {
 
     console.log("MXE x25519 pubkey is", mxePublicKey);
 
+    // Phase 1: Create comp def accounts (skip if already exist)
     console.log("Initializing vote stats computation definition");
     try {
-      const initVoteStatsSig = await initVoteStatsCompDef(program, owner);
-      console.log("Vote stats computation definition initialized with signature", initVoteStatsSig);
+      await initCompDefAccount(program, owner, "init_vote_stats");
     } catch (e) {
-      console.log("Vote stats comp def already initialized, skipping");
+      console.log("Vote stats comp def account already exists, skipping creation");
     }
 
     console.log("Initializing voting computation definition");
     try {
-      const initVoteSig = await initVoteCompDef(program, owner);
-      console.log("Vote computation definition initialized with signature", initVoteSig);
+      await initCompDefAccount(program, owner, "vote");
     } catch (e) {
-      console.log("Vote comp def already initialized, skipping");
+      console.log("Vote comp def account already exists, skipping creation");
     }
 
     console.log("Initializing reveal result computation definition");
     try {
-      const initRRSig = await initRevealResultCompDef(program, owner);
-      console.log("Reveal result computation definition initialized with signature", initRRSig);
+      await initCompDefAccount(program, owner, "reveal_result");
     } catch (e) {
-      console.log("Reveal result comp def already initialized, skipping");
+      console.log("Reveal result comp def account already exists, skipping creation");
+    }
+
+    // Phase 2: Upload circuits (always attempt - idempotent)
+    console.log("Uploading circuits...");
+    for (const circuitName of ["init_vote_stats", "vote", "reveal_result"]) {
+      try {
+        const rawCircuit = fs.readFileSync(`build/${circuitName}.arcis`);
+        await uploadCircuit(
+          provider as anchor.AnchorProvider,
+          circuitName,
+          program.programId,
+          rawCircuit,
+          true
+        );
+        console.log(`Circuit ${circuitName} uploaded successfully`);
+      } catch (e) {
+        console.log(`Circuit ${circuitName} upload skipped (may already exist): ${e.message}`);
+      }
     }
 
     const { privateKey, publicKey } = deriveEncryptionKey(
@@ -347,24 +363,22 @@ describe("VeilVote", () => {
     }
   });
 
-  async function initVoteStatsCompDef(
+  async function initCompDefAccount(
     program: Program<Veilvote>,
-    owner: anchor.web3.Keypair
+    owner: anchor.web3.Keypair,
+    circuitName: string
   ): Promise<string> {
     const baseSeedCompDefAcc = getArciumAccountBaseSeed(
       "ComputationDefinitionAccount"
     );
-    const offset = getCompDefAccOffset("init_vote_stats");
+    const offset = getCompDefAccOffset(circuitName);
 
     const compDefPDA = PublicKey.findProgramAddressSync(
       [baseSeedCompDefAcc, program.programId.toBuffer(), offset],
       getArciumProgramId()
     )[0];
 
-    console.log(
-      "Init vote stats computation definition pda is ",
-      compDefPDA.toBase58()
-    );
+    console.log(`${circuitName} computation definition pda is `, compDefPDA.toBase58());
 
     const arciumProgram = getArciumProgram(provider as anchor.AnchorProvider);
     const mxeAccount = getMXEAccAddress(program.programId);
@@ -374,8 +388,14 @@ describe("VeilVote", () => {
       mxeAcc.lutOffsetSlot
     );
 
-    const sig = await program.methods
-      .initVoteStatsCompDef()
+    // Map circuit name to instruction method
+    const methodMap: Record<string, () => any> = {
+      "init_vote_stats": () => program.methods.initVoteStatsCompDef(),
+      "vote": () => program.methods.initVoteCompDef(),
+      "reveal_result": () => program.methods.initRevealResultCompDef(),
+    };
+
+    const sig = await methodMap[circuitName]()
       .accounts({
         compDefAccount: compDefPDA,
         payer: owner.publicKey,
@@ -387,121 +407,7 @@ describe("VeilVote", () => {
         preflightCommitment: "confirmed",
         commitment: "confirmed",
       });
-    console.log("Init vote stats computation definition transaction", sig);
-
-    const rawCircuit = fs.readFileSync("build/init_vote_stats.arcis");
-    await uploadCircuit(
-      provider as anchor.AnchorProvider,
-      "init_vote_stats",
-      program.programId,
-      rawCircuit,
-      true
-    );
-
-    return sig;
-  }
-
-  async function initVoteCompDef(
-    program: Program<Veilvote>,
-    owner: anchor.web3.Keypair
-  ): Promise<string> {
-    const baseSeedCompDefAcc = getArciumAccountBaseSeed(
-      "ComputationDefinitionAccount"
-    );
-    const offset = getCompDefAccOffset("vote");
-
-    const compDefPDA = PublicKey.findProgramAddressSync(
-      [baseSeedCompDefAcc, program.programId.toBuffer(), offset],
-      getArciumProgramId()
-    )[0];
-
-    console.log("Vote computation definition pda is ", compDefPDA.toBase58());
-
-    const arciumProgram = getArciumProgram(provider as anchor.AnchorProvider);
-    const mxeAccount = getMXEAccAddress(program.programId);
-    const mxeAcc = await arciumProgram.account.mxeAccount.fetch(mxeAccount);
-    const lutAddress = getLookupTableAddress(
-      program.programId,
-      mxeAcc.lutOffsetSlot
-    );
-
-    const sig = await program.methods
-      .initVoteCompDef()
-      .accounts({
-        compDefAccount: compDefPDA,
-        payer: owner.publicKey,
-        mxeAccount,
-        addressLookupTable: lutAddress,
-      })
-      .signers([owner])
-      .rpc({
-        preflightCommitment: "confirmed",
-        commitment: "confirmed",
-      });
-    console.log("Init vote computation definition transaction", sig);
-
-    const rawCircuit = fs.readFileSync("build/vote.arcis");
-    await uploadCircuit(
-      provider as anchor.AnchorProvider,
-      "vote",
-      program.programId,
-      rawCircuit,
-      true
-    );
-
-    return sig;
-  }
-
-  async function initRevealResultCompDef(
-    program: Program<Veilvote>,
-    owner: anchor.web3.Keypair
-  ): Promise<string> {
-    const baseSeedCompDefAcc = getArciumAccountBaseSeed(
-      "ComputationDefinitionAccount"
-    );
-    const offset = getCompDefAccOffset("reveal_result");
-
-    const compDefPDA = PublicKey.findProgramAddressSync(
-      [baseSeedCompDefAcc, program.programId.toBuffer(), offset],
-      getArciumProgramId()
-    )[0];
-
-    console.log(
-      "Reveal result computation definition pda is ",
-      compDefPDA.toBase58()
-    );
-
-    const arciumProgram = getArciumProgram(provider as anchor.AnchorProvider);
-    const mxeAccount = getMXEAccAddress(program.programId);
-    const mxeAcc = await arciumProgram.account.mxeAccount.fetch(mxeAccount);
-    const lutAddress = getLookupTableAddress(
-      program.programId,
-      mxeAcc.lutOffsetSlot
-    );
-
-    const sig = await program.methods
-      .initRevealResultCompDef()
-      .accounts({
-        compDefAccount: compDefPDA,
-        payer: owner.publicKey,
-        mxeAccount,
-        addressLookupTable: lutAddress,
-      })
-      .signers([owner])
-      .rpc({
-        preflightCommitment: "confirmed",
-        commitment: "confirmed",
-      });
-    console.log("Init reveal result computation definition transaction", sig);
-
-    const rawCircuit = fs.readFileSync("build/reveal_result.arcis");
-    await uploadCircuit(
-      provider as anchor.AnchorProvider,
-      "reveal_result",
-      program.programId,
-      rawCircuit,
-      true
-    );
+    console.log(`${circuitName} computation definition transaction`, sig);
 
     return sig;
   }
