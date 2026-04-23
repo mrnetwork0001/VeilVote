@@ -8,6 +8,7 @@ const COMP_DEF_OFFSET_REVEAL: u32 = comp_def_offset("reveal_result");
 
 declare_id!("B9xuJHLGqgb2szy76qBUiXrAFpYgx4g7aUZrEDimsRFk");
 
+#[arcium_program]
 pub mod veilvote {
     use super::*;
 
