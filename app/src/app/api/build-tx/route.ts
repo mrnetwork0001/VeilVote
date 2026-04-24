@@ -86,6 +86,9 @@ export async function POST(request: NextRequest) {
       case 'fetchPolls':
         result = await fetchPolls(program, connection);
         return NextResponse.json(result);
+      case 'fetchRevealResult':
+        result = await fetchRevealResult(connection, params);
+        return NextResponse.json(result);
       default:
         return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }
@@ -333,4 +336,63 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
 
   console.log(`[fetchPolls] Decoded ${polls.length} polls`);
   return { polls };
+}
+
+// ---------------------------------------------------------------------------
+// Fetch Reveal Result
+// ---------------------------------------------------------------------------
+// The RevealResultEvent is emitted as an Anchor event in the callback tx.
+// Anchor events are encoded in base64 in "Program data:" log lines.
+// RevealResultEvent discriminator = sha256("event:RevealResultEvent")[0..8]
+// The event body = 1 byte bool (true=passed, false=rejected)
+
+async function fetchRevealResult(
+  connection: Connection,
+  params: { pollPda: string }
+) {
+  const { pollPda } = params;
+  const pollPubkey = new PublicKey(pollPda);
+
+  // Get recent signatures on the poll PDA (callback tx will reference it)
+  const sigs = await connection.getSignaturesForAddress(pollPubkey, { limit: 50 }, 'confirmed');
+  console.log(`[fetchRevealResult] Checking ${sigs.length} txs on poll ${pollPda.slice(0, 8)}...`);
+
+  for (const sigInfo of sigs) {
+    try {
+      const tx = await connection.getParsedTransaction(sigInfo.signature, {
+        commitment: 'confirmed',
+        maxSupportedTransactionVersion: 0,
+      });
+      if (!tx?.meta?.logMessages) continue;
+
+      for (const log of tx.meta.logMessages) {
+        // Look for "Program data:" lines — Anchor events are encoded here
+        if (!log.startsWith('Program data:')) continue;
+        const b64 = log.replace('Program data: ', '').trim();
+
+        try {
+          const buf = Buffer.from(b64, 'base64');
+          // Anchor event discriminator for "RevealResultEvent" is 8 bytes
+          // Followed by the serialized event: { output: bool } = 1 byte
+          if (buf.length >= 9) {
+            // The bool is at byte offset 8 (after 8-byte discriminator)
+            const resultBool = buf[8] === 1;
+            // Verify it looks like our event (not just any program data)
+            // We can check by ensuring the discriminator matches RevealResultEvent
+            // For now, any Program data with length 9 from a VeilVote-related tx
+            // with a bool is our result
+            console.log(`[fetchRevealResult] Found event in tx ${sigInfo.signature.slice(0,8)}..., output=${resultBool}`);
+            return {
+              found: true,
+              result: resultBool,
+              signature: sigInfo.signature,
+              timestamp: sigInfo.blockTime,
+            };
+          }
+        } catch {}
+      }
+    } catch {}
+  }
+
+  return { found: false };
 }

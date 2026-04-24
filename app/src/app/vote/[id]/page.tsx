@@ -24,6 +24,29 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
   const [revealSig, setRevealSig] = useState<string | null>(null);
   const [revealError, setRevealError] = useState<string | null>(null);
 
+  // Result from Arcium MPC callback
+  const [revealResult, setRevealResult] = useState<{ found: boolean; result?: boolean; signature?: string } | null>(null);
+  const [checkingResult, setCheckingResult] = useState(false);
+
+  const checkRevealResult = async (pollPda: string) => {
+    setCheckingResult(true);
+    try {
+      const res = await fetch('/api/build-tx', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'fetchRevealResult',
+          payer: PublicKey.default.toBase58(),
+          rpcUrl: connection.rpcEndpoint,
+          pollPda,
+        }),
+      });
+      const data = await res.json();
+      if (data.found) setRevealResult(data);
+    } catch {}
+    setCheckingResult(false);
+  };
+
   useEffect(() => {
     const loadPoll = async () => {
       try {
@@ -31,6 +54,8 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
         const found = polls.find((p) => p.id === proposalId);
         if (found) {
           setPoll(found);
+          // Check if result already revealed
+          await checkRevealResult(found.pda);
           if (wallet.publicKey) {
             const alreadyVoted = await hasUserVoted(
               connection,
@@ -88,6 +113,26 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
       });
       await connection.confirmTransaction(sig, 'confirmed');
       setRevealSig(sig);
+      // Start polling for result — Arcium MPC callback takes a few seconds
+      const pollInterval = setInterval(async () => {
+        const res2 = await fetch('/api/build-tx', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'fetchRevealResult',
+            payer: PublicKey.default.toBase58(),
+            rpcUrl: connection.rpcEndpoint,
+            pollPda: poll.pda,
+          }),
+        });
+        const data = await res2.json();
+        if (data.found) {
+          setRevealResult(data);
+          clearInterval(pollInterval);
+        }
+      }, 5000);
+      // Stop polling after 2 minutes
+      setTimeout(() => clearInterval(pollInterval), 120000);
     } catch (err: any) {
       setRevealError(err?.message || 'Reveal failed');
     } finally {
@@ -253,6 +298,55 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
                     </p>
                   </>
                 )}
+              </div>
+            )}
+
+            {/* Result display — visible to everyone once MPC reveals */}
+            {revealResult?.found && (
+              <div className="glass-card" style={{
+                padding: 'var(--space-xl)', textAlign: 'center',
+                border: `1px solid ${revealResult.result ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                background: revealResult.result ? 'rgba(34,197,94,0.05)' : 'rgba(239,68,68,0.05)',
+              }}>
+                <div style={{ fontSize: '3rem', marginBottom: 'var(--space-sm)' }}>
+                  {revealResult.result ? '✅' : '❌'}
+                </div>
+                <h3 style={{
+                  color: revealResult.result ? 'var(--success)' : 'var(--error)',
+                  marginBottom: 'var(--space-sm)',
+                }}>
+                  {revealResult.result ? 'Proposal Passed' : 'Proposal Rejected'}
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 'var(--space-md)' }}>
+                  Result decrypted by Arcium MPC cluster. Tally revealed on-chain.
+                </p>
+                {revealResult.signature && (
+                  <a
+                    href={getExplorerLink(revealResult.signature)}
+                    target="_blank" rel="noopener noreferrer"
+                    className="btn btn-ghost btn-sm"
+                  >
+                    View Reveal Tx ↗
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* Show polling indicator if reveal was submitted but result not yet found */}
+            {revealSig && !revealResult?.found && (
+              <div className="glass-card" style={{ padding: 'var(--space-lg)', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.5rem', marginBottom: 'var(--space-sm)', animation: 'pulse-dot 1.5s infinite' }}>⏳</div>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Waiting for Arcium MPC nodes to decrypt the tally...
+                </p>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  style={{ marginTop: 'var(--space-md)' }}
+                  onClick={() => poll && checkRevealResult(poll.pda)}
+                  disabled={checkingResult}
+                >
+                  {checkingResult ? 'Checking...' : '🔄 Check Now'}
+                </button>
               </div>
             )}
           </div>
