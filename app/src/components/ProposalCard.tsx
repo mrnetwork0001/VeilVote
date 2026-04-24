@@ -21,7 +21,13 @@ export default function ProposalCard({ proposal }: ProposalCardProps) {
   const statusMap: Record<string, string> = {
     active: 'badge-active',
     ended: 'badge-ended',
-    revealed: 'badge-revealed',
+    revealed: proposal.result ? 'badge-revealed' : 'badge-ended',
+  };
+
+  const statusLabel: Record<string, string> = {
+    active: 'active',
+    ended: 'ended',
+    revealed: proposal.result ? '✅ passed' : '❌ rejected',
   };
 
   return (
@@ -30,7 +36,7 @@ export default function ProposalCard({ proposal }: ProposalCardProps) {
         <div className="proposal-card-header">
           <h4>{proposal.title}</h4>
           <span className={`badge ${statusMap[proposal.status]}`}>
-            {proposal.status}
+            {statusLabel[proposal.status]}
           </span>
         </div>
         <p className="proposal-card-body">{proposal.description}</p>
@@ -43,27 +49,22 @@ export default function ProposalCard({ proposal }: ProposalCardProps) {
               👤 {shortenAddress(proposal.authority)}
             </span>
           </div>
-          {proposal.status === 'active' ? (
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-              {proposal.createdAt > 0 ? timeAgo(proposal.createdAt) : 'Active'}
-            </span>
-          ) : proposal.status === 'revealed' ? (
-            <span
-              style={{
-                fontSize: '0.8rem',
-                color: proposal.result ? 'var(--success)' : 'var(--error)',
-                fontWeight: 600,
-              }}
-            >
-              {proposal.result ? '✅ Passed' : '❌ Rejected'}
+          {proposal.status === 'revealed' ? (
+            <span style={{
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              color: proposal.result ? 'var(--success)' : 'var(--error)',
+            }}>
+              {proposal.result ? 'Proposal Passed' : 'Proposal Rejected'}
             </span>
           ) : (
             <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-              Awaiting reveal
+              {proposal.createdAt > 0 ? timeAgo(proposal.createdAt) : 'Active'}
             </span>
           )}
         </div>
       </div>
     </Link>
   );
+
 }

@@ -65,7 +65,10 @@ export interface OnChainPoll {
   bump: number;
   pda: string;
   createdAt: number;
+  revealed: boolean;
+  result?: boolean;
 }
+
 
 export async function fetchAllPolls(connection: Connection): Promise<OnChainPoll[]> {
   const data = await callBuildTx('fetchPolls', PublicKey.default.toBase58(), connection.rpcEndpoint);

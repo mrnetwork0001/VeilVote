@@ -187,7 +187,13 @@ export default function VotePage({ params }: { params: Promise<{ id: string }> }
           {/* Left: Proposal Details */}
           <div className="glass-card vote-details animate-fade-in">
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
-              <span className="badge badge-active">active</span>
+              {revealResult?.found ? (
+                <span className={`badge ${revealResult.result ? 'badge-revealed' : 'badge-ended'}`}>
+                  {revealResult.result ? '✅ passed' : '❌ rejected'}
+                </span>
+              ) : (
+                <span className="badge badge-active">active</span>
+              )}
               <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
                 Proposal #{poll.id}
               </span>
