@@ -267,9 +267,21 @@ async function buildRevealResult(
       compDefAccount: arcGetCompDefAccAddress(PROGRAM_PUBKEY, compDefOffsetU32),
       pollAcc: pollPDA,
     })
-    .rpc({ skipPreflight: true });
+    .instruction();
 
-  return { signature: ix };
+  const bhInfo = await connection.getLatestBlockhash('confirmed');
+  const tx = new Transaction();
+  tx.recentBlockhash = bhInfo.blockhash;
+  tx.feePayer = payer;
+  tx.add(ix);
+
+  const serialized = tx.serialize({ requireAllSignatures: false, verifySignatures: false });
+
+  return {
+    transaction: serialized.toString('base64'),
+    blockhash: bhInfo.blockhash,
+    lastValidBlockHeight: bhInfo.lastValidBlockHeight,
+  };
 }
 
 // ---------------------------------------------------------------------------
