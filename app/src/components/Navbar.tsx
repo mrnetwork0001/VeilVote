@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import WalletButton from './WalletButton';
@@ -17,7 +18,8 @@ export default function Navbar() {
     <nav className="navbar" id="navbar">
       <div className="navbar-inner">
         <Link href="/" className="navbar-brand">
-          &gt; VEILVOTE_
+          <Image src="/logo.png" alt="VeilVote Logo" width={20} height={20} style={{ objectFit: 'contain' }} />
+          VEILVOTE_
         </Link>
 
         <div className="navbar-links">
