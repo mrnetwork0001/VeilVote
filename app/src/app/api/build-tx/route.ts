@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // API Route: /api/build-tx
 // Builds transactions server-side using @arcium-hq/client + Anchor IDL
 // Returns serialized transaction for client-side wallet signing
@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'createProposal':
         result = await buildCreateProposal(program, connection, payerPubkey, params);
+        if (params.pollId) trackNewPoll(params.pollId);
         invalidatePollsCache(); // new proposal - fresh fetch next time
         break;
       case 'vote':
@@ -320,6 +321,18 @@ async function buildRevealResult(
 }
 
 // ---------------------------------------------------------------------------
+// New proposals tracker: only show polls created during this server session.
+// Old test proposals are hidden. Set SHOW_ALL_POLLS=true to show everything.
+// ---------------------------------------------------------------------------
+const SHOW_ALL_POLLS = false;
+const newPollIds = new Set<number>();
+function trackNewPoll(pollId: number) {
+  newPollIds.add(pollId);
+  invalidatePollsCache();
+  console.log(`[tracker] Poll ${pollId} added. Tracking ${newPollIds.size} polls.`);
+}
+
+// ---------------------------------------------------------------------------
 // Fetch Polls (FAST - single RPC call + in-memory reveal cache)
 // ---------------------------------------------------------------------------
 
@@ -356,8 +369,11 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
     }
   }
 
-  console.log(`[fetchPolls] ${polls.length} polls in ${Date.now() - t0}ms (${revealedPollsCache.size} cached reveals)`);
-  const result = { polls };
+  const allPolls = polls;
+  const filteredPolls = SHOW_ALL_POLLS ? allPolls : allPolls.filter((p: any) => newPollIds.has(p.id));
+
+  console.log(`[fetchPolls] ${allPolls.length} total, ${filteredPolls.length} shown in ${Date.now() - t0}ms (${revealedPollsCache.size} cached reveals)`);
+  const result = { polls: filteredPolls };
   setCachedPolls(result);
 
   // Bootstrap: if reveal cache is empty, scan all polls in background
