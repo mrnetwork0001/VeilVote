@@ -324,7 +324,7 @@ async function buildRevealResult(
 // New proposals tracker: only show polls created during this server session.
 // Old test proposals are hidden. Set SHOW_ALL_POLLS=true to show everything.
 // ---------------------------------------------------------------------------
-const SHOW_ALL_POLLS = false;
+const SHOW_ALL_POLLS = true;
 const newPollIds = new Set<number>();
 function trackNewPoll(pollId: number) {
   newPollIds.add(pollId);
