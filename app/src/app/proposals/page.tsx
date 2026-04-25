@@ -10,7 +10,7 @@ import { fetchAllPolls, type OnChainPoll } from '@/lib/veilvote-client';
 type FilterTab = 'all' | ProposalStatus;
 
 function pollToProposal(poll: OnChainPoll): Proposal {
-  const createdAt = poll.createdAt || Math.floor(Date.now() / 1000);
+  const createdAt = poll.createdAt || 0;
   const status = poll.revealed ? 'revealed' : 'active';
 
   return {
