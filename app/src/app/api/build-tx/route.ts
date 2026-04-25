@@ -312,7 +312,7 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
             pda: pubkey.toBase58(),
             createdAt: 0,
             revealed: false,
-            result: undefined as boolean | undefined,
+            result: undefined,
           });
           break;
         }
@@ -320,39 +320,34 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
     }
   }
 
-  // For each poll, get creation time + check for reveal result in tx logs
+  console.log(`[fetchPolls] Decoded ${polls.length} polls`);
+
+  // Fast reveal check: fetch only the 3 most recent sigs per poll in parallel
+  // A reveal callback is always one of the most recent txs on the poll PDA
   await Promise.all(
     polls.map(async (poll) => {
       try {
         const sigs = await connection.getSignaturesForAddress(
           new PublicKey(poll.pda),
-          { limit: 50 },
+          { limit: 3 },
           'confirmed'
         );
-        if (sigs.length > 0 && sigs[sigs.length - 1].blockTime) {
-          poll.createdAt = sigs[sigs.length - 1].blockTime;
-        }
 
-        // Check all txs for RevealResultEvent in Program data logs
         for (const sigInfo of sigs) {
           try {
             const tx = await connection.getParsedTransaction(sigInfo.signature, {
               commitment: 'confirmed',
               maxSupportedTransactionVersion: 0,
             });
-            if (!tx?.meta?.logMessages) continue;
-            for (const log of tx.meta.logMessages) {
+            for (const log of tx?.meta?.logMessages ?? []) {
               if (!log.startsWith('Program data:')) continue;
-              const b64 = log.replace('Program data: ', '').trim();
-              try {
-                const buf = Buffer.from(b64, 'base64');
-                if (buf.length === 9) {
-                  poll.revealed = true;
-                  poll.result = buf[8] === 1;
-                  console.log(`[fetchPolls] Poll ${poll.id} revealed: ${poll.result ? 'passed' : 'rejected'}`);
-                  return; // found it, stop scanning
-                }
-              } catch {}
+              const buf = Buffer.from(log.replace('Program data: ', '').trim(), 'base64');
+              // RevealResultEvent = 8 byte discriminator + 1 byte bool = 9 bytes total
+              if (buf.length === 9) {
+                poll.revealed = true;
+                poll.result = buf[8] === 1;
+                return; // done for this poll
+              }
             }
           } catch {}
         }
@@ -360,7 +355,6 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
     })
   );
 
-  console.log(`[fetchPolls] Decoded ${polls.length} polls`);
   return { polls };
 }
 
