@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -54,7 +54,7 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
       }, 4000);
     } catch (err: any) {
       console.error('Create proposal failed:', err);
-      setError(err?.message || 'Failed to create proposal');
+      setError(err?.message || 'failed to create proposal');
     } finally {
       setIsSubmitting(false);
     }
@@ -64,17 +64,17 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Create Proposal</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <h3>$ NEW --PROPOSAL</h3>
+          <button className="modal-close" onClick={onClose}>[X]</button>
         </div>
 
         <div className="modal-body">
           {txSig ? (
             <div style={{ textAlign: 'center', padding: 'var(--space-xl) 0' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: 'var(--space-md)' }}>✅</div>
-              <h4 style={{ marginBottom: 'var(--space-md)' }}>Proposal Created on Solana!</h4>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 'var(--space-md)' }}>
-                Your proposal has been submitted to devnet. MPC is initializing encrypted tallies.
+              <div style={{ fontSize: '1.2rem', marginBottom: 'var(--space-md)', color: 'var(--accent-primary)' }}>[OK]</div>
+              <h4 style={{ marginBottom: 'var(--space-md)' }}>PROPOSAL CREATED ON SOLANA</h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: 'var(--space-md)' }}>
+                // submitted to devnet. MPC initializing encrypted tallies.
               </p>
               <a
                 href={getExplorerLink(txSig)}
@@ -82,33 +82,33 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
                 rel="noopener noreferrer"
                 className="btn btn-primary btn-sm"
               >
-                View on Explorer ↗
+                [ VIEW ON EXPLORER ]
               </a>
             </div>
           ) : (
             <>
               <div className="input-group">
-                <label>Proposal Title (max 50 chars)</label>
+                <label>$ title (max 50 chars)</label>
                 <input
                   className="input"
                   type="text"
-                  placeholder="What should the DAO decide?"
+                  placeholder="what should the dao decide?"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   maxLength={50}
                   disabled={isSubmitting}
                   id="proposal-title-input"
                 />
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textAlign: 'right' }}>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textAlign: 'right', display: 'block', marginTop: '4px' }}>
                   {title.length}/50
                 </span>
               </div>
 
               <div className="input-group">
-                <label>Description (for display only)</label>
+                <label>$ description (display only)</label>
                 <textarea
                   className="textarea"
-                  placeholder="Provide context for voters..."
+                  placeholder="provide context for voters..."
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   disabled={isSubmitting}
@@ -117,7 +117,7 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
               </div>
 
               <div className="input-group">
-                <label>Voting Period</label>
+                <label>$ duration --period</label>
                 <select
                   className="select"
                   value={durationIndex}
@@ -127,26 +127,25 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
                 >
                   {VOTING_PERIODS.map((p, i) => (
                     <option key={i} value={i}>
-                      {p.label} - {p.description}
+                      {p.label} // {p.description}
                     </option>
                   ))}
                 </select>
               </div>
 
               {error && (
-                <p style={{ color: 'var(--error)', fontSize: '0.85rem' }}>
-                  ⚠️ {error}
+                <p style={{ color: 'var(--error)', fontSize: '0.8rem' }}>
+                  [ERR] {error}
                 </p>
               )}
 
               <div style={{
                 padding: 'var(--space-md)',
-                background: 'var(--accent-gradient-subtle)',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.8rem',
+                border: '1px dashed var(--glass-border)',
+                fontSize: '0.75rem',
                 color: 'var(--text-secondary)',
               }}>
-                🔐 This creates a real onchain proposal on Solana devnet. Your wallet will sign the transaction.
+                // this creates a real onchain proposal on solana devnet. your wallet will sign the transaction.
               </div>
             </>
           )}
@@ -155,7 +154,7 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
         {!txSig && (
           <div className="modal-footer">
             <button className="btn btn-ghost" onClick={onClose} disabled={isSubmitting}>
-              Cancel
+              [ CANCEL ]
             </button>
             <button
               className="btn btn-primary"
@@ -163,7 +162,7 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
               disabled={!title.trim() || isSubmitting || !wallet.connected}
               id="submit-proposal-button"
             >
-              {isSubmitting ? '⏳ Submitting...' : '🗳️ Create Proposal'}
+              {isSubmitting ? '> submitting...' : '[ CREATE PROPOSAL ]'}
             </button>
           </div>
         )}

@@ -1,92 +1,77 @@
-﻿'use client';
+'use client';
 
 interface ResultsChartProps {
-  result: boolean;
-  totalVotes: number;
+  result: boolean | undefined;
+  revealed: boolean;
 }
 
-export default function ResultsChart({ result, totalVotes }: ResultsChartProps) {
-  // Since reveal_result only returns a boolean (yes > no),
-  // we show the verdict rather than exact counts.
-  // This is by design - individual counts are never revealed.
+export default function ResultsChart({ result, revealed }: ResultsChartProps) {
+  // VeilVote only reveals pass/fail, not individual counts.
+  // This is by design -- individual counts are never revealed.
+
+  if (!revealed) {
+    const bar = '[||||||||||||||||||||..........]';
+    return (
+      <div className="glass-card" style={{ padding: 'var(--space-xl)' }}>
+        <h4 style={{ marginBottom: 'var(--space-md)' }}>$ TALLY --STATUS</h4>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 'var(--space-lg)' }}>
+          // vote tally is encrypted. individual counts hidden until authority reveals.
+        </div>
+        <div style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.85rem',
+          color: 'var(--text-tertiary)',
+          marginBottom: 'var(--space-sm)',
+        }}>
+          yes: [????????????????????????????????] ???
+        </div>
+        <div style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.85rem',
+          color: 'var(--text-tertiary)',
+          marginBottom: 'var(--space-lg)',
+        }}>
+          no:  [????????????????????????????????] ???
+        </div>
+        <div style={{
+          padding: 'var(--space-md)',
+          border: '1px dashed var(--glass-border)',
+          fontSize: '0.75rem',
+          color: 'var(--text-secondary)',
+        }}>
+          // only the boolean result (pass/fail) is revealed. individual vote counts
+          remain encrypted -- this prevents vote-buying and strategic voting.
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="glass-card" style={{ padding: 'var(--space-xl)' }}>
-      <h4 style={{ marginBottom: 'var(--space-xl)' }}>Final Result</h4>
-
-      <div className="result-verdict">
-        <div className={`result-verdict-icon ${result ? 'passed' : 'failed'}`}>
-          {result ? '✅' : '❌'}
-        </div>
-        <h3 style={{ marginBottom: 'var(--space-sm)' }}>
-          {result ? 'Proposal Passed' : 'Proposal Rejected'}
-        </h3>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          {result
-            ? 'The majority voted in favor of this proposal.'
-            : 'The majority voted against this proposal.'}
-        </p>
-      </div>
-
+    <div className="glass-card" style={{
+      padding: 'var(--space-xl)',
+      borderColor: result ? 'var(--success)' : 'var(--error)',
+    }}>
+      <h4 style={{ marginBottom: 'var(--space-md)' }}>$ TALLY --RESULT</h4>
       <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        gap: 'var(--space-2xl)',
-        marginTop: 'var(--space-xl)',
-        paddingTop: 'var(--space-xl)',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
+        fontFamily: 'var(--font-mono)',
+        fontSize: '1.2rem',
+        fontWeight: 800,
+        color: result ? 'var(--success)' : 'var(--error)',
+        textShadow: result
+          ? '0 0 12px rgba(51, 255, 0, 0.5)'
+          : '0 0 12px rgba(255, 51, 51, 0.5)',
+        textAlign: 'center',
+        padding: 'var(--space-lg)',
+        marginBottom: 'var(--space-md)',
       }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            fontSize: '1.8rem',
-            fontWeight: 700,
-            fontFamily: 'var(--font-display)',
-            color: 'var(--text-primary)',
-          }}>
-            {totalVotes}
-          </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-            Total Votes
-          </div>
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            fontSize: '1.8rem',
-            fontWeight: 700,
-            fontFamily: 'var(--font-display)',
-            color: result ? 'var(--success)' : 'var(--error)',
-          }}>
-            {result ? 'YES' : 'NO'}
-          </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-            Outcome
-          </div>
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            fontSize: '1.8rem',
-            fontWeight: 700,
-            fontFamily: 'var(--font-display)',
-            color: 'var(--text-accent)',
-          }}>
-            🔐
-          </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-            Counts Hidden
-          </div>
-        </div>
+        {result ? '> RESULT: PASSED [exit 0]' : '> RESULT: REJECTED [exit 1]'}
       </div>
-
       <div style={{
-        marginTop: 'var(--space-xl)',
-        padding: 'var(--space-md)',
-        background: 'var(--accent-gradient-subtle)',
-        borderRadius: 'var(--radius-md)',
-        fontSize: '0.8rem',
+        fontSize: '0.75rem',
         color: 'var(--text-secondary)',
         textAlign: 'center',
       }}>
-        💡 Only the boolean result (pass/fail) is revealed. Individual vote counts remain encrypted - this prevents vote-buying and strategic voting.
+        // boolean result revealed by arcium MPC. exact vote counts remain encrypted.
       </div>
     </div>
   );

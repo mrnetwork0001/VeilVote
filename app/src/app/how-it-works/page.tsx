@@ -1,4 +1,4 @@
-﻿import HowItWorksFlow from '@/components/HowItWorksFlow';
+import HowItWorksFlow from '@/components/HowItWorksFlow';
 import Link from 'next/link';
 
 export default function HowItWorksPage() {
@@ -8,15 +8,15 @@ export default function HowItWorksPage() {
         {/* Header */}
         <div className="section-title animate-fade-in" style={{ marginBottom: 'var(--space-3xl)' }}>
           <div className="hero-badge" style={{ marginBottom: 'var(--space-lg)' }}>
-            <span>🔬</span>
-            Technical Deep Dive
+            <span>&gt;</span>
+            TECHNICAL DEEP DIVE
           </div>
           <h1>
-            How <span className="text-gradient">VeilVote</span> Works
+            $ MAN <span className="text-gradient">VEILVOTE</span>
           </h1>
           <p style={{ maxWidth: '650px', margin: 'var(--space-md) auto 0' }}>
-            VeilVote uses Arcium&apos;s Multi-Party Computation (MPC) to keep your vote
-            encrypted during the entire tallying process. Here&apos;s how it works, step by step.
+            veilvote uses arcium&apos;s Multi-Party Computation (MPC) to keep your vote
+            encrypted during the entire tallying process. here&apos;s the full pipeline.
           </p>
         </div>
 
@@ -26,9 +26,9 @@ export default function HowItWorksPage() {
         {/* Why MPC? Section */}
         <div style={{ marginTop: 'var(--space-4xl)' }}>
           <div className="section-title">
-            <h2>Why Multi-Party Computation?</h2>
+            <h2>$ DIFF --COMPARE PRIVACY_TECH</h2>
             <p>
-              Comparing MPC to other privacy approaches for DAO voting.
+              // comparing MPC to other privacy approaches for DAO voting.
             </p>
           </div>
 
@@ -41,121 +41,121 @@ export default function HowItWorksPage() {
               overflowX: 'auto',
             }}
           >
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
               <thead>
                 <tr>
-                  <th style={thStyle}>Feature</th>
+                  <th style={thStyle}>FEATURE</th>
                   <th style={thStyle}>
-                    <span className="text-gradient" style={{ fontWeight: 700 }}>MPC (Arcium)</span>
+                    <span className="text-gradient" style={{ fontWeight: 700 }}>MPC (ARCIUM)</span>
                   </th>
                   <th style={thStyle}>FHE</th>
-                  <th style={thStyle}>ZK Proofs</th>
+                  <th style={thStyle}>ZK PROOFS</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td style={tdStyle}>Vote Privacy</td>
-                  <td style={{ ...tdStyle, color: 'var(--success)' }}>✅ Full</td>
-                  <td style={{ ...tdStyle, color: 'var(--success)' }}>✅ Full</td>
-                  <td style={{ ...tdStyle, color: 'var(--warning)' }}>⚠️ Partial</td>
+                  <td style={tdStyle}>vote_privacy</td>
+                  <td style={{ ...tdStyle, color: 'var(--success)' }}>[OK] full</td>
+                  <td style={{ ...tdStyle, color: 'var(--success)' }}>[OK] full</td>
+                  <td style={{ ...tdStyle, color: 'var(--warning)' }}>[..] partial</td>
                 </tr>
                 <tr>
-                  <td style={tdStyle}>Computation Speed</td>
-                  <td style={{ ...tdStyle, color: 'var(--success)' }}>✅ Fast</td>
-                  <td style={{ ...tdStyle, color: 'var(--error)' }}>❌ Slow</td>
-                  <td style={{ ...tdStyle, color: 'var(--success)' }}>✅ Fast</td>
+                  <td style={tdStyle}>compute_speed</td>
+                  <td style={{ ...tdStyle, color: 'var(--success)' }}>[OK] fast</td>
+                  <td style={{ ...tdStyle, color: 'var(--error)' }}>[ERR] slow</td>
+                  <td style={{ ...tdStyle, color: 'var(--success)' }}>[OK] fast</td>
                 </tr>
                 <tr>
-                  <td style={tdStyle}>No Trusted Setup</td>
-                  <td style={{ ...tdStyle, color: 'var(--success)' }}>✅ Yes</td>
-                  <td style={{ ...tdStyle, color: 'var(--success)' }}>✅ Yes</td>
-                  <td style={{ ...tdStyle, color: 'var(--warning)' }}>⚠️ Depends</td>
+                  <td style={tdStyle}>trusted_setup</td>
+                  <td style={{ ...tdStyle, color: 'var(--success)' }}>[OK] none</td>
+                  <td style={{ ...tdStyle, color: 'var(--success)' }}>[OK] none</td>
+                  <td style={{ ...tdStyle, color: 'var(--warning)' }}>[..] depends</td>
                 </tr>
                 <tr>
-                  <td style={tdStyle}>Encrypted Tallying</td>
-                  <td style={{ ...tdStyle, color: 'var(--success)' }}>✅ Native</td>
-                  <td style={{ ...tdStyle, color: 'var(--success)' }}>✅ Native</td>
-                  <td style={{ ...tdStyle, color: 'var(--error)' }}>❌ No</td>
+                  <td style={tdStyle}>encrypted_tally</td>
+                  <td style={{ ...tdStyle, color: 'var(--success)' }}>[OK] native</td>
+                  <td style={{ ...tdStyle, color: 'var(--success)' }}>[OK] native</td>
+                  <td style={{ ...tdStyle, color: 'var(--error)' }}>[ERR] no</td>
                 </tr>
                 <tr>
-                  <td style={tdStyle}>Solana Native</td>
-                  <td style={{ ...tdStyle, color: 'var(--success)' }}>✅ Arcium</td>
-                  <td style={{ ...tdStyle, color: 'var(--error)' }}>❌ No</td>
-                  <td style={{ ...tdStyle, color: 'var(--warning)' }}>⚠️ Limited</td>
+                  <td style={tdStyle}>solana_native</td>
+                  <td style={{ ...tdStyle, color: 'var(--success)' }}>[OK] arcium</td>
+                  <td style={{ ...tdStyle, color: 'var(--error)' }}>[ERR] no</td>
+                  <td style={{ ...tdStyle, color: 'var(--warning)' }}>[..] limited</td>
                 </tr>
                 <tr>
-                  <td style={tdStyle}>Multi-Party Input</td>
-                  <td style={{ ...tdStyle, color: 'var(--success)' }}>✅ Native</td>
-                  <td style={{ ...tdStyle, color: 'var(--error)' }}>❌ Single-Key</td>
-                  <td style={{ ...tdStyle, color: 'var(--error)' }}>❌ Prover Only</td>
+                  <td style={tdStyle}>multi_party_input</td>
+                  <td style={{ ...tdStyle, color: 'var(--success)' }}>[OK] native</td>
+                  <td style={{ ...tdStyle, color: 'var(--error)' }}>[ERR] single-key</td>
+                  <td style={{ ...tdStyle, color: 'var(--error)' }}>[ERR] prover only</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Arcium Architecture */}
+        {/* Three Layers */}
         <div style={{ marginTop: 'var(--space-4xl)' }}>
           <div className="section-title">
-            <h2>The Three Layers</h2>
+            <h2>$ CAT /ARCHITECTURE</h2>
             <p>
-              Every VeilVote operation flows through three coupled surfaces.
+              // every veilvote operation flows through three coupled surfaces.
             </p>
           </div>
 
           <div className="features-grid stagger-children">
             <div className="glass-card feature-card">
-              <div className="feature-icon">⚡</div>
-              <h4>Arcis Circuit</h4>
+              <div className="feature-icon" style={{ color: 'var(--accent-secondary)' }}>01//</div>
+              <h4>ARCIS_CIRCUIT</h4>
               <p>
-                Rust code that runs inside Arcium&apos;s MPC network on encrypted data.
-                Defines the vote tallying logic - adding votes, comparing counts.
-                All arithmetic happens on secret-shared data.
+                rust code that runs inside arcium&apos;s MPC network on encrypted data.
+                defines the vote tallying logic -- adding votes, comparing counts.
+                all arithmetic on secret-shared data.
               </p>
               <code
                 style={{
                   display: 'block',
                   marginTop: 'var(--space-md)',
                   padding: 'var(--space-md)',
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(51, 255, 0, 0.04)',
+                  border: '1px dashed var(--glass-border)',
                   fontSize: '0.75rem',
-                  color: 'var(--text-accent)',
+                  color: 'var(--accent-secondary)',
                 }}
               >
-                encrypted-ixs/src/lib.rs
+                $ cat encrypted-ixs/src/lib.rs
               </code>
             </div>
 
             <div className="glass-card feature-card">
-              <div className="feature-icon">🔗</div>
-              <h4>Solana Program</h4>
+              <div className="feature-icon" style={{ color: 'var(--accent-secondary)' }}>02//</div>
+              <h4>SOLANA_PROGRAM</h4>
               <p>
-                Anchor program that manages proposals, queues MPC computations,
+                anchor program that manages proposals, queues MPC computations,
                 stores encrypted state onchain, and handles callbacks from the
-                Arx node network.
+                arx node network.
               </p>
               <code
                 style={{
                   display: 'block',
                   marginTop: 'var(--space-md)',
                   padding: 'var(--space-md)',
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(51, 255, 0, 0.04)',
+                  border: '1px dashed var(--glass-border)',
                   fontSize: '0.75rem',
-                  color: 'var(--text-accent)',
+                  color: 'var(--accent-secondary)',
                 }}
               >
-                programs/veilvote/src/lib.rs
+                $ cat programs/veilvote/src/lib.rs
               </code>
             </div>
 
             <div className="glass-card feature-card">
-              <div className="feature-icon">💻</div>
-              <h4>Client (This App)</h4>
+              <div className="feature-icon" style={{ color: 'var(--accent-secondary)' }}>03//</div>
+              <h4>CLIENT_APP</h4>
               <p>
-                Performs x25519 key exchange with MXE, encrypts votes using
-                RescueCipher, submits transactions, and decrypts results. Your
+                performs x25519 key exchange with MXE, encrypts votes using
+                RescueCipher, submits transactions, and decrypts results. your
                 vote is encrypted before it ever touches the network.
               </p>
               <code
@@ -163,13 +163,13 @@ export default function HowItWorksPage() {
                   display: 'block',
                   marginTop: 'var(--space-md)',
                   padding: 'var(--space-md)',
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(51, 255, 0, 0.04)',
+                  border: '1px dashed var(--glass-border)',
                   fontSize: '0.75rem',
-                  color: 'var(--text-accent)',
+                  color: 'var(--accent-secondary)',
                 }}
               >
-                app/src/lib/arcium.ts
+                $ cat app/src/lib/arcium.ts
               </code>
             </div>
           </div>
@@ -182,26 +182,26 @@ export default function HowItWorksPage() {
             marginTop: 'var(--space-4xl)',
             padding: 'var(--space-3xl)',
             textAlign: 'center',
-            border: '1px solid rgba(124, 58, 237, 0.2)',
+            borderColor: 'var(--accent-primary)',
           }}
         >
           <h2 style={{ marginBottom: 'var(--space-md)' }}>
-            Ready to Vote <span className="text-gradient">Privately</span>?
+            $ READY TO VOTE <span className="text-gradient">PRIVATELY</span>?
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 'var(--space-xl)', maxWidth: '500px', margin: '0 auto var(--space-xl)' }}>
-            Connect your wallet and cast your first encrypted vote.
+            // connect your wallet and cast your first encrypted vote.
           </p>
-          <div style={{ display: 'flex', gap: 'var(--space-md)', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-md)', justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link href="/proposals" className="btn btn-primary btn-lg">
-              🗳️ Browse Proposals
+              [ BROWSE PROPOSALS ]
             </Link>
             <a
-              href="https://github.com"
+              href="https://github.com/mrnetwork0001/VeilVote"
               target="_blank"
               rel="noopener noreferrer"
               className="btn btn-secondary btn-lg"
             >
-              ⭐ GitHub
+              [ GITHUB ]
             </a>
           </div>
         </div>
@@ -212,18 +212,21 @@ export default function HowItWorksPage() {
 
 // Table styling helpers
 const thStyle: React.CSSProperties = {
-  padding: '12px 16px',
+  padding: '10px 14px',
   textAlign: 'left',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
-  color: 'var(--text-secondary)',
-  fontWeight: 600,
-  fontSize: '0.8rem',
+  borderBottom: '1px solid var(--glass-border)',
+  color: 'var(--accent-primary)',
+  fontWeight: 700,
+  fontSize: '0.7rem',
   textTransform: 'uppercase',
-  letterSpacing: '0.05em',
+  letterSpacing: '0.1em',
+  fontFamily: 'var(--font-mono)',
 };
 
 const tdStyle: React.CSSProperties = {
-  padding: '12px 16px',
-  borderBottom: '1px solid rgba(255,255,255,0.04)',
-  color: 'var(--text-primary)',
+  padding: '10px 14px',
+  borderBottom: '1px dashed var(--glass-border)',
+  color: 'var(--text-secondary)',
+  fontFamily: 'var(--font-mono)',
+  fontSize: '0.75rem',
 };

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import ProposalCard from '@/components/ProposalCard';
@@ -16,7 +16,7 @@ function pollToProposal(poll: OnChainPoll): Proposal {
   return {
     id: poll.id,
     title: poll.question,
-    description: `Onchain proposal #${poll.id}`,
+    description: `onchain proposal #${poll.id}`,
     authority: poll.authority,
     createdAt,
     status,
@@ -26,7 +26,6 @@ function pollToProposal(poll: OnChainPoll): Proposal {
     pda: poll.pda,
   };
 }
-
 
 export default function ProposalsPage() {
   const { connected } = useWallet();
@@ -55,7 +54,7 @@ export default function ProposalsPage() {
     }
   }, [connection]);
 
-  // Load proposals on mount - no wallet required for reading
+  // Load proposals on mount -- no wallet required for reading
   useEffect(() => {
     loadProposals();
   }, [loadProposals]);
@@ -66,10 +65,10 @@ export default function ProposalsPage() {
   });
 
   const tabs: { label: string; value: FilterTab }[] = [
-    { label: 'All', value: 'all' },
-    { label: 'Active', value: 'active' },
-    { label: 'Ended', value: 'ended' },
-    { label: 'Revealed', value: 'revealed' },
+    { label: '--all', value: 'all' },
+    { label: '--active', value: 'active' },
+    { label: '--ended', value: 'ended' },
+    { label: '--revealed', value: 'revealed' },
   ];
 
   return (
@@ -77,18 +76,18 @@ export default function ProposalsPage() {
       <div className="container">
         <div className="proposals-header animate-fade-in">
           <div>
-            <h1 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', marginBottom: 'var(--space-sm)' }}>
-              Governance Proposals
+            <h1 style={{ fontSize: 'clamp(1.4rem, 3vw, 2rem)', marginBottom: 'var(--space-sm)' }}>
+              $ LS /PROPOSALS
             </h1>
             <p style={{ color: 'var(--text-secondary)' }}>
               {proposals.length > 0
-                ? `${proposals.length} proposals on Solana devnet. All votes encrypted via Arcium MPC.`
-                : 'Loading proposals from Solana devnet...'}
+                ? `// ${proposals.length} proposals found on solana devnet. all votes encrypted via arcium MPC.`
+                : '// fetching proposals from solana devnet...'}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center' }}>
             <button className="btn btn-ghost btn-sm" onClick={loadProposals} disabled={loading}>
-              🔄 Refresh
+              [ REFRESH ]
             </button>
             <button
               className="btn btn-primary"
@@ -96,7 +95,7 @@ export default function ProposalsPage() {
               disabled={!connected}
               id="create-proposal-button"
             >
-              ➕ New Proposal
+              [ NEW PROPOSAL ]
             </button>
           </div>
         </div>
@@ -120,25 +119,25 @@ export default function ProposalsPage() {
 
         {loading ? (
           <div className="empty-state">
-            <div className="empty-state-icon" style={{ animation: 'pulse-dot 1.5s infinite' }}>⏳</div>
-            <h3>Loading from Devnet...</h3>
-            <p>Fetching proposals from Solana devnet...</p>
+            <div className="empty-state-icon animate-blink" style={{ fontFamily: 'var(--font-mono)', fontSize: '1.5rem' }}>&#9608;</div>
+            <h3>$ LOADING FROM DEVNET...</h3>
+            <p>fetching proposals from solana devnet...</p>
           </div>
         ) : error ? (
           <div className="empty-state">
-            <div className="empty-state-icon">⚠️</div>
-            <h3>Error Loading Proposals</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{error}</p>
-            <button className="btn btn-primary" onClick={loadProposals}>Retry</button>
+            <div className="empty-state-icon" style={{ color: 'var(--error)' }}>[ERR]</div>
+            <h3>ERROR LOADING PROPOSALS</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{error}</p>
+            <button className="btn btn-primary" onClick={loadProposals}>[ RETRY ]</button>
           </div>
         ) : filteredProposals.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">🗳️</div>
-            <h3>No proposals found</h3>
+            <div className="empty-state-icon">&gt;_</div>
+            <h3>NO PROPOSALS FOUND</h3>
             <p>
               {filter === 'all'
-                ? 'No proposals on devnet yet. Connect wallet & create the first one!'
-                : `No ${filter} proposals at the moment.`}
+                ? '// no proposals on devnet yet. connect wallet & create the first one.'
+                : `// no ${filter} proposals at the moment.`}
             </p>
           </div>
         ) : (

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -29,7 +29,6 @@ export default function VotePanel({ proposalId, proposalAuthority, disabled = fa
 
     try {
       setStatus('encrypting');
-
       setStatus('submitting');
       const sig = await castVote(
         connection,
@@ -42,11 +41,10 @@ export default function VotePanel({ proposalId, proposalAuthority, disabled = fa
 
       setStatus('computing');
       await new Promise((r) => setTimeout(r, 3000));
-
       setStatus('finalized');
     } catch (err: any) {
       console.error('Vote failed:', err);
-      setErrorMsg(err?.message?.substring(0, 200) || 'Vote transaction failed');
+      setErrorMsg(err?.message?.substring(0, 200) || 'vote transaction failed');
       setStatus('error');
     }
   };
@@ -54,10 +52,10 @@ export default function VotePanel({ proposalId, proposalAuthority, disabled = fa
   if (hasVoted) {
     return (
       <div className="glass-card" style={{ padding: 'var(--space-xl)', textAlign: 'center' }}>
-        <div style={{ fontSize: '2rem', marginBottom: 'var(--space-md)' }}>✅</div>
-        <h4 style={{ marginBottom: 'var(--space-sm)' }}>Vote Recorded</h4>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          Your encrypted vote has been tallied onchain.
+        <div style={{ fontSize: '1.2rem', marginBottom: 'var(--space-sm)', color: 'var(--accent-primary)' }}>[OK]</div>
+        <h4>VOTE RECORDED</h4>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+          // your encrypted vote has been tallied onchain.
         </p>
       </div>
     );
@@ -66,21 +64,21 @@ export default function VotePanel({ proposalId, proposalAuthority, disabled = fa
   if (status !== 'idle' && status !== 'error') {
     return (
       <div className="glass-card" style={{ padding: 'var(--space-xl)' }}>
-        <h4 style={{ marginBottom: 'var(--space-lg)' }}>Vote Progress</h4>
+        <h4 style={{ marginBottom: 'var(--space-lg)' }}>$ VOTE --STATUS</h4>
         <VoteStatusTracker currentStatus={status} />
         {status === 'finalized' && (
           <div style={{ textAlign: 'center', marginTop: 'var(--space-xl)' }}>
-            <p style={{ color: 'var(--success)', fontWeight: 600, marginBottom: 'var(--space-sm)' }}>
-              ✅ Vote encrypted & submitted on Solana devnet!
+            <p style={{ color: 'var(--success)', fontWeight: 600, marginBottom: 'var(--space-sm)', textShadow: '0 0 8px rgba(51, 255, 0, 0.5)' }}>
+              [OK] vote encrypted & submitted on solana devnet
             </p>
             {txSig && (
               <a
                 href={getExplorerLink(txSig)}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ fontSize: '0.8rem', color: 'var(--text-accent)' }}
+                style={{ fontSize: '0.75rem', color: 'var(--accent-secondary)' }}
               >
-                View transaction on Solana Explorer ↗
+                $ view tx on explorer &gt;
               </a>
             )}
           </div>
@@ -93,22 +91,21 @@ export default function VotePanel({ proposalId, proposalAuthority, disabled = fa
 
   return (
     <div className="glass-card" style={{ padding: 'var(--space-xl)' }}>
-      <h4 style={{ marginBottom: 'var(--space-lg)' }}>Cast Your Vote</h4>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 'var(--space-lg)' }}>
-        Your vote is encrypted via Arcium MPC before submission. No one can see how you voted.
+      <h4 style={{ marginBottom: 'var(--space-lg)' }}>$ CAST --VOTE</h4>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: 'var(--space-lg)' }}>
+        // your vote is encrypted via arcium MPC before submission. no one can see how you voted.
       </p>
 
       {!walletConnected && (
         <div style={{
-          padding: 'var(--space-lg)',
-          background: 'var(--accent-gradient-subtle)',
-          borderRadius: 'var(--radius-md)',
+          padding: 'var(--space-md)',
+          border: '1px dashed var(--accent-secondary)',
           textAlign: 'center',
           marginBottom: 'var(--space-lg)',
+          color: 'var(--accent-secondary)',
+          fontSize: '0.8rem',
         }}>
-          <p style={{ color: 'var(--text-accent)', fontSize: '0.85rem', fontWeight: 600 }}>
-            🔗 Connect your wallet to vote
-          </p>
+          $ connect --wallet required
         </div>
       )}
 
@@ -120,7 +117,7 @@ export default function VotePanel({ proposalId, proposalAuthority, disabled = fa
           id="vote-option-yes"
         >
           <div className="vote-option-radio" />
-          <span className="vote-option-label">👍 Yes - Approve</span>
+          <span className="vote-option-label">&gt; YES // approve</span>
         </button>
 
         <button
@@ -130,7 +127,7 @@ export default function VotePanel({ proposalId, proposalAuthority, disabled = fa
           id="vote-option-no"
         >
           <div className="vote-option-radio" />
-          <span className="vote-option-label">👎 No - Reject</span>
+          <span className="vote-option-label">&gt; NO // reject</span>
         </button>
       </div>
 
@@ -141,20 +138,20 @@ export default function VotePanel({ proposalId, proposalAuthority, disabled = fa
         onClick={handleVote}
         id="submit-vote-button"
       >
-        🔐 Encrypt & Submit Vote
+        [ ENCRYPT & SUBMIT ]
       </button>
 
       {status === 'error' && (
         <div style={{ marginTop: 'var(--space-md)', textAlign: 'center' }}>
-          <p style={{ color: 'var(--error)', fontSize: '0.85rem' }}>
-            {errorMsg || 'Vote failed. Please try again.'}
+          <p style={{ color: 'var(--error)', fontSize: '0.8rem' }}>
+            [ERR] {errorMsg || 'vote failed. retry.'}
           </p>
           <button
             className="btn btn-ghost btn-sm"
             onClick={() => { setStatus('idle'); setErrorMsg(null); }}
             style={{ marginTop: 'var(--space-sm)' }}
           >
-            Try Again
+            [ RETRY ]
           </button>
         </div>
       )}

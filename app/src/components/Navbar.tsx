@@ -8,17 +8,16 @@ export default function Navbar() {
   const pathname = usePathname();
 
   const links = [
-    { href: '/', label: 'Home' },
-    { href: '/proposals', label: 'Proposals' },
-    { href: '/how-it-works', label: 'How It Works' },
+    { href: '/', label: '/home' },
+    { href: '/proposals', label: '/proposals' },
+    { href: '/how-it-works', label: '/docs' },
   ];
 
   return (
     <nav className="navbar" id="navbar">
       <div className="navbar-inner">
         <Link href="/" className="navbar-brand">
-          <span className="brand-icon">🗳️</span>
-          VeilVote
+          &gt; VEILVOTE_
         </Link>
 
         <div className="navbar-links">

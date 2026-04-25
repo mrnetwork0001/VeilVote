@@ -18,7 +18,6 @@ export default function WalletButton() {
     }
   }, [connected, showDropdown, setVisible]);
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -30,7 +29,7 @@ export default function WalletButton() {
   }, []);
 
   const shortenedAddress = publicKey
-    ? `${publicKey.toBase58().slice(0, 4)}...${publicKey.toBase58().slice(-4)}`
+    ? `${publicKey.toBase58().slice(0, 4)}..${publicKey.toBase58().slice(-4)}`
     : '';
 
   return (
@@ -42,14 +41,11 @@ export default function WalletButton() {
       >
         {connected ? (
           <>
-            <span style={{ fontSize: '0.9rem' }}>🟢</span>
+            <span style={{ color: 'var(--accent-primary)' }}>&#9608;</span>
             <span className="wallet-address">{shortenedAddress}</span>
           </>
         ) : (
-          <>
-            <span>🔗</span>
-            Connect Wallet
-          </>
+          <>[ CONNECT ]</>
         )}
       </button>
 
@@ -57,57 +53,71 @@ export default function WalletButton() {
         <div
           style={{
             position: 'absolute',
-            top: 'calc(100% + 8px)',
+            top: 'calc(100% + 4px)',
             right: 0,
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--glass-border)',
-            borderRadius: 'var(--radius-md)',
-            padding: '0.5rem',
-            minWidth: '180px',
+            background: 'var(--bg-primary)',
+            border: '1px solid var(--accent-primary)',
+            padding: '4px',
+            minWidth: '200px',
             zIndex: 200,
-            boxShadow: 'var(--shadow-lg)',
+            boxShadow: '0 0 15px rgba(51, 255, 0, 0.15)',
           }}
         >
           <button
-            className="btn-ghost"
             style={{
               width: '100%',
               textAlign: 'left',
-              padding: '0.6rem 0.8rem',
-              borderRadius: 'var(--radius-sm)',
+              padding: '8px 12px',
               border: 'none',
-              fontFamily: 'var(--font-body)',
-              fontSize: '0.85rem',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.75rem',
               cursor: 'pointer',
               color: 'var(--text-secondary)',
               background: 'transparent',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(51, 255, 0, 0.08)';
+              e.currentTarget.style.color = 'var(--accent-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = 'var(--text-secondary)';
             }}
             onClick={() => {
               navigator.clipboard.writeText(publicKey?.toBase58() || '');
               setShowDropdown(false);
             }}
           >
-            📋 Copy Address
+            $ copy --address
           </button>
           <button
             style={{
               width: '100%',
               textAlign: 'left',
-              padding: '0.6rem 0.8rem',
-              borderRadius: 'var(--radius-sm)',
+              padding: '8px 12px',
               border: 'none',
-              fontFamily: 'var(--font-body)',
-              fontSize: '0.85rem',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.75rem',
               cursor: 'pointer',
               color: 'var(--error)',
               background: 'transparent',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 51, 51, 0.08)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
             }}
             onClick={() => {
               disconnect();
               setShowDropdown(false);
             }}
           >
-            ⏏️ Disconnect
+            $ disconnect --force
           </button>
         </div>
       )}
