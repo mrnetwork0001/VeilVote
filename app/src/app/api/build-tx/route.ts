@@ -37,29 +37,33 @@ const CLUSTER_OFFSET = 456;
 let cachedIdl: any = null;
 
 // ---------------------------------------------------------------------------
-// Server-side polls cache (60 second TTL)
+// Server-side caches
 // ---------------------------------------------------------------------------
-interface PollsCache {
-  data: any;
-  expiresAt: number;
-}
+
+// Polls list cache (30 second TTL — fast enough for content changes)
+interface PollsCache { data: any; expiresAt: number; }
 let pollsCache: PollsCache | null = null;
 
 function getCachedPolls(): any | null {
-  if (pollsCache && Date.now() < pollsCache.expiresAt) {
-    console.log('[fetchPolls] Returning cached result');
-    return pollsCache.data;
-  }
+  if (pollsCache && Date.now() < pollsCache.expiresAt) return pollsCache.data;
   return null;
 }
-
 function setCachedPolls(data: any) {
-  pollsCache = { data, expiresAt: Date.now() + 60_000 }; // 60s TTL
+  pollsCache = { data, expiresAt: Date.now() + 30_000 };
+}
+function invalidatePollsCache() { pollsCache = null; }
+
+// PERMANENT reveal result cache (key = poll PDA, value = boolean result)
+// Once a poll is revealed, it stays revealed forever — no need for TTL.
+// Populated by fetchRevealResult (called from vote page auto-poller).
+const revealedPollsCache = new Map<string, boolean>();
+
+function markPollRevealed(pda: string, result: boolean) {
+  revealedPollsCache.set(pda, result);
+  invalidatePollsCache(); // force polls list to re-read on next request
+  console.log(`[cache] Poll ${pda.slice(0,8)}... marked as ${result ? 'PASSED' : 'REJECTED'}`);
 }
 
-export function invalidatePollsCache() {
-  pollsCache = null;
-}
 
 
 async function getProgram(connection: Connection): Promise<anchor.Program> {
@@ -316,17 +320,15 @@ async function buildRevealResult(
 }
 
 // ---------------------------------------------------------------------------
-// Fetch Polls
+// Fetch Polls (FAST — single RPC call + in-memory reveal cache)
 // ---------------------------------------------------------------------------
 
 async function fetchPolls(program: anchor.Program, connection: Connection) {
-  // Return cached result if still fresh
   const cached = getCachedPolls();
   if (cached) return cached;
 
   const t0 = Date.now();
   const accounts = await connection.getProgramAccounts(PROGRAM_PUBKEY);
-  console.log(`[fetchPolls] getProgramAccounts: ${Date.now() - t0}ms, ${accounts.length} accounts`);
 
   const polls: any[] = [];
   for (const { pubkey, account } of accounts) {
@@ -334,6 +336,8 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
       try {
         const decoded = program.coder.accounts.decode(name, account.data);
         if (decoded && decoded.question !== undefined) {
+          const pda = pubkey.toBase58();
+          const isRevealed = revealedPollsCache.has(pda);
           polls.push({
             id: decoded.id,
             authority: decoded.authority?.toBase58?.() || decoded.authority,
@@ -341,104 +345,84 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
             voteState: decoded.voteState || [],
             nonce: decoded.nonce?.toString?.() || '0',
             bump: decoded.bump || 0,
-            pda: pubkey.toBase58(),
+            pda,
             createdAt: 0,
-            revealed: false,
-            result: undefined,
+            revealed: isRevealed,
+            result: isRevealed ? revealedPollsCache.get(pda) : undefined,
           });
           break;
         }
       } catch {}
     }
   }
-  console.log(`[fetchPolls] Decoded ${polls.length} polls in ${Date.now() - t0}ms`);
 
-  // Reveal check: get ALL sigs for each poll PDA (fast — no tx parsing yet),
-  // then only parse txs that have "RevealResult" in their memo log message.
-  // This way we avoid parsedTransaction calls on vote txs entirely.
-  await Promise.all(
-    polls.map(async (poll) => {
-      try {
-        // Get up to 20 sigs (covers any realistic number of post-reveal votes)
-        const sigs = await connection.getSignaturesForAddress(
-          new PublicKey(poll.pda),
-          { limit: 20 },
-          'confirmed'
-        );
-
-        // Set creation time from oldest sig
-        if (sigs.length > 0) {
-          const oldest = sigs[sigs.length - 1];
-          if (oldest.blockTime) poll.createdAt = oldest.blockTime;
-        }
-
-        // Filter to only sigs that have "RevealResult" in the memo field
-        // (Anchor logs "Instruction: RevealResult" as a memo on the sig)
-        const revealSigs = sigs.filter(
-          (s) => s.memo && s.memo.includes('RevealResult')
-        );
-
-        // If none found by memo, check all (memo may be null on some RPCs)
-        const toCheck = revealSigs.length > 0 ? revealSigs : sigs.slice(0, 5);
-
-        for (const sigInfo of toCheck) {
-          try {
-            const tx = await connection.getParsedTransaction(sigInfo.signature, {
-              commitment: 'confirmed',
-              maxSupportedTransactionVersion: 0,
-            });
-
-            // Check log messages for RevealResult instruction
-            const logs = tx?.meta?.logMessages ?? [];
-            const hasReveal = logs.some((l) => l.includes('RevealResult'));
-            if (!hasReveal) continue;
-
-            // Found a reveal tx — scan Program data for the event
-            for (const log of logs) {
-              if (!log.startsWith('Program data:')) continue;
-              const buf = Buffer.from(log.replace('Program data: ', '').trim(), 'base64');
-              // RevealResultEvent = 8-byte discriminator + 1-byte bool = 9 bytes
-              if (buf.length === 9) {
-                poll.revealed = true;
-                poll.result = buf[8] === 1;
-                console.log(`[fetchPolls] Poll ${poll.id}: revealed=${poll.result ? 'passed' : 'rejected'}`);
-                return;
-              }
-            }
-          } catch {}
-        }
-      } catch {}
-    })
-  );
-
-  console.log(`[fetchPolls] Total: ${Date.now() - t0}ms`);
+  console.log(`[fetchPolls] ${polls.length} polls in ${Date.now() - t0}ms (${revealedPollsCache.size} cached reveals)`);
   const result = { polls };
   setCachedPolls(result);
+
+  // Bootstrap: if reveal cache is empty, scan all polls in background
+  // This runs AFTER the response is sent, so it doesn't slow the page load
+  if (revealedPollsCache.size === 0 && polls.length > 0) {
+    console.log('[fetchPolls] Bootstrapping reveal cache in background...');
+    bootstrapRevealCache(connection, polls.map((p: any) => p.pda));
+  }
+
   return result;
 }
 
+// Background reveal cache bootstrap — runs without blocking
+let bootstrapRunning = false;
+async function bootstrapRevealCache(connection: Connection, pdas: string[]) {
+  if (bootstrapRunning) return;
+  bootstrapRunning = true;
+  try {
+    for (const pda of pdas) {
+      if (revealedPollsCache.has(pda)) continue;
+      try {
+        const result = await fetchRevealResult(connection, { pollPda: pda });
+        if (result.found) {
+          // Already stored by fetchRevealResult via markPollRevealed
+        }
+      } catch {}
+    }
+    console.log(`[bootstrap] Done. ${revealedPollsCache.size} reveals cached.`);
+  } finally {
+    bootstrapRunning = false;
+  }
+}
 
 
 // ---------------------------------------------------------------------------
-// Fetch Reveal Result
+// Fetch Reveal Result (for individual poll — called from vote page)
 // ---------------------------------------------------------------------------
-// The RevealResultEvent is emitted as an Anchor event in the callback tx.
-// Anchor events are encoded in base64 in "Program data:" log lines.
-// RevealResultEvent discriminator = sha256("event:RevealResultEvent")[0..8]
-// The event body = 1 byte bool (true=passed, false=rejected)
+// The Arcium MPC callback tx does NOT reference the poll PDA (registered with
+// &[] callback accounts). So we can't find it via getSignaturesForAddress(pollPDA).
+//
+// Strategy: first check permanent cache. If not cached, find the user's
+// "RevealResult" tx on the poll PDA, extract the computation_account from it,
+// then search the computation_account's sigs for the callback tx.
 
 async function fetchRevealResult(
   connection: Connection,
   params: { pollPda: string }
 ) {
   const { pollPda } = params;
+
+  // 1. Check permanent cache first (instant)
+  if (revealedPollsCache.has(pollPda)) {
+    return {
+      found: true,
+      result: revealedPollsCache.get(pollPda),
+      signature: 'cached',
+    };
+  }
+
   const pollPubkey = new PublicKey(pollPda);
 
-  // Get recent signatures on the poll PDA (callback tx will reference it)
-  const sigs = await connection.getSignaturesForAddress(pollPubkey, { limit: 50 }, 'confirmed');
-  console.log(`[fetchRevealResult] Checking ${sigs.length} txs on poll ${pollPda.slice(0, 8)}...`);
+  // 2. Find the user's RevealResult tx on the poll PDA
+  const pollSigs = await connection.getSignaturesForAddress(pollPubkey, { limit: 30 }, 'confirmed');
 
-  for (const sigInfo of sigs) {
+  for (const sigInfo of pollSigs) {
     try {
       const tx = await connection.getParsedTransaction(sigInfo.signature, {
         commitment: 'confirmed',
@@ -446,32 +430,71 @@ async function fetchRevealResult(
       });
       if (!tx?.meta?.logMessages) continue;
 
-      for (const log of tx.meta.logMessages) {
-        // Look for "Program data:" lines — Anchor events are encoded here
-        if (!log.startsWith('Program data:')) continue;
-        const b64 = log.replace('Program data: ', '').trim();
+      // Is this a RevealResult tx?
+      const isReveal = tx.meta.logMessages.some((l: string) =>
+        l.includes('Instruction: RevealResult')
+      );
+      if (!isReveal) continue;
+
+      // 3. Extract computation_account from inner instructions
+      //    It's the account created by System Program in this tx
+      //    (assigned to Arcium program, typically 445 bytes)
+      const innerIxs = tx.meta.innerInstructions ?? [];
+      let computationAcct: string | null = null;
+
+      for (const group of innerIxs) {
+        for (const ix of group.instructions as any[]) {
+          if (
+            ix.parsed?.type === 'createAccount' &&
+            ix.parsed?.info?.owner === 'Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ'
+          ) {
+            computationAcct = ix.parsed.info.newAccount;
+            break;
+          }
+        }
+        if (computationAcct) break;
+      }
+
+      if (!computationAcct) continue;
+      console.log(`[fetchRevealResult] Found computationAcct ${computationAcct.slice(0,8)}... from reveal tx`);
+
+      // 4. Search the computation_account for the callback tx
+      const compPubkey = new PublicKey(computationAcct);
+      const compSigs = await connection.getSignaturesForAddress(compPubkey, { limit: 10 }, 'confirmed');
+
+      for (const compSig of compSigs) {
+        // Skip the original reveal tx itself
+        if (compSig.signature === sigInfo.signature) continue;
 
         try {
-          const buf = Buffer.from(b64, 'base64');
-          // Anchor event discriminator for "RevealResultEvent" is 8 bytes
-          // Followed by the serialized event: { output: bool } = 1 byte
-          if (buf.length >= 9) {
-            // The bool is at byte offset 8 (after 8-byte discriminator)
-            const resultBool = buf[8] === 1;
-            // Verify it looks like our event (not just any program data)
-            // We can check by ensuring the discriminator matches RevealResultEvent
-            // For now, any Program data with length 9 from a VeilVote-related tx
-            // with a bool is our result
-            console.log(`[fetchRevealResult] Found event in tx ${sigInfo.signature.slice(0,8)}..., output=${resultBool}`);
-            return {
-              found: true,
-              result: resultBool,
-              signature: sigInfo.signature,
-              timestamp: sigInfo.blockTime,
-            };
+          const callbackTx = await connection.getParsedTransaction(compSig.signature, {
+            commitment: 'confirmed',
+            maxSupportedTransactionVersion: 0,
+          });
+          if (!callbackTx?.meta?.logMessages) continue;
+
+          for (const log of callbackTx.meta.logMessages) {
+            if (!log.startsWith('Program data:')) continue;
+            const buf = Buffer.from(log.replace('Program data: ', '').trim(), 'base64');
+            // RevealResultEvent = 8-byte discriminator + 1-byte bool
+            if (buf.length === 9) {
+              const resultBool = buf[8] === 1;
+              markPollRevealed(pollPda, resultBool);
+              console.log(`[fetchRevealResult] Poll ${pollPda.slice(0,8)}... = ${resultBool ? 'PASSED' : 'REJECTED'}`);
+              return {
+                found: true,
+                result: resultBool,
+                signature: compSig.signature,
+                timestamp: compSig.blockTime,
+              };
+            }
           }
         } catch {}
       }
+
+      // If we found a reveal tx but no callback yet, MPC still processing
+      console.log(`[fetchRevealResult] Reveal submitted but callback not yet received`);
+      return { found: false };
     } catch {}
   }
 
