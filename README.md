@@ -98,6 +98,54 @@ User's Browser                      Solana                    Arcium MPC Cluster
 | Double-vote prevention | ✅ On-chain VoterRecord PDAs prevent re-voting |
 | Coercion resistance | ✅ Voters cannot prove how they voted |
 
+### ⏱️ MPC Reveal Lifecycle & Timing
+
+The reveal process is **asynchronous** — it spans multiple Solana transactions:
+
+```
+User clicks "Reveal"         Arcium MPC Cluster              Solana
+─────────────────────        ─────────────────               ──────
+1. Sign RevealResult tx ──►  
+2.                           QueueComputation logged
+3.                           MPC nodes pick up job
+4.                           Threshold decryption            
+                             (quorum of Arx nodes
+                              collaborate on secret-
+                              shared key fragments)
+5.                           Submit callback tx ──────────►  reveal_result_callback
+6.                                                           emit!(RevealResultEvent)
+7. Frontend auto-polls   ◄──────────────────────────────────  Result: true/false
+```
+
+#### Devnet Timing Expectations
+
+| Phase | Description | Devnet Time |
+|-------|-------------|-------------|
+| **Queue** | `RevealResult` tx queues a computation via `QueueComputation` CPI to Arcium program | Instant (on-chain) |
+| **Pickup** | Arx nodes poll the mempool and pick up the job | 10s – 2 min |
+| **Decrypt** | Multiple Arx nodes independently decrypt their key shares and run threshold comparison | 30s – 3 min |
+| **Callback** | Nodes submit `reveal_result_callback` tx with the boolean result | ~10s |
+| **Total** | End-to-end from button click to result display | **1 – 5 minutes** |
+
+> **Note for Arcium Reviewers**: On devnet, the MPC cluster has limited nodes and processes computations sequentially, so longer wait times (up to 5 minutes) are expected. On mainnet with a full Arx cluster, the same process typically completes in **10–30 seconds**.
+
+#### How the Frontend Handles Async Reveal
+
+1. **After the user signs the `RevealResult` tx**, the frontend shows a ⏳ polling indicator
+2. **Every 5 seconds**, it calls `fetchRevealResult` to check for the callback
+3. **The server traces the computation_account** created in the user's reveal tx, then searches that account's signatures for the Arcium callback tx containing the `RevealResultEvent`
+4. **Once found**, the result (`true` = Passed, `false` = Rejected) is displayed and permanently cached server-side
+5. **Subsequent page loads** read from the permanent cache (instant)
+
+#### Important Technical Detail: Callback Account Resolution
+
+The `reveal_result_callback` is registered with `&[]` callback accounts in the Solana program — meaning the Arcium callback transaction does **not** reference the poll PDA. To find the callback:
+
+1. Search `getSignaturesForAddress(pollPDA)` to find the user's `RevealResult` tx
+2. Parse the inner instructions to extract the `computation_account` (created by Arcium's `QueueComputation`)
+3. Search `getSignaturesForAddress(computation_account)` to find the callback tx
+4. Parse `Program data:` logs for the 9-byte `RevealResultEvent` (8-byte Anchor discriminator + 1-byte bool)
+
 ---
 
 ## 🛠️ Tech Stack
@@ -391,6 +439,9 @@ arcium deploy \
 | `ComputationDefinitionNotCompleted` | Circuits not uploaded — re-run tests to trigger upload |
 | `429 Too Many Requests` | Use a paid RPC (Helius, QuickNode) instead of public devnet |
 | `Cluster must contain at least two arx nodes` | Use `--cluster-offset 456 --recovery-set-size 4` for devnet |
+| Reveal takes 2-5 minutes | Normal on devnet — MPC cluster has limited nodes. Mainnet: ~10-30s |
+| Reveal shows "Waiting..." forever | MPC job may have timed out. Click "Reveal" again to re-queue |
+| Proposals list shows "Active" after reveal | First visit the proposal page to trigger result detection, then refresh list |
 
 ---
 
