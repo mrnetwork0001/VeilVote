@@ -209,16 +209,13 @@ export default function Home() {
         }}
       >
         <p>
-          $ built with encryption for the{' '}
-          <a href="https://skills.arcium.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-secondary)' }}>
-            arcium_skills
+          Built by{' '}
+          <a href="https://x.com/encrypt_wizard" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-primary)' }}>
+            MrNetwork
           </a>{' '}
-          bounty // private voting (DAO governance)
-        </p>
-        <p style={{ marginTop: 'var(--space-sm)' }}>
-          veilvote (c) {new Date().getFullYear()} // MIT license //{' '}
-          <a href="https://github.com/mrnetwork0001/VeilVote" target="_blank" rel="noopener noreferrer">
-            github
+          on Solana Devnet. Powered by{' '}
+          <a href="https://arcium.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-secondary)' }}>
+            Arcium
           </a>
         </p>
       </footer>
