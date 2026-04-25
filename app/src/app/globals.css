@@ -1,5 +1,5 @@
-/* =============================================================================
-   VeilVote — Design System
+﻿/* =============================================================================
+   VeilVote - Design System
    Premium dark theme with glassmorphism, purple/violet accents
    ============================================================================= */
 
@@ -10,20 +10,20 @@
    ============================================================================= */
 
 :root {
-  /* Colors — Core */
+  /* Colors - Core */
   --bg-primary: #07070f;
   --bg-secondary: #0d0d1a;
   --bg-tertiary: #131325;
   --bg-card: rgba(18, 18, 38, 0.65);
   --bg-card-hover: rgba(25, 25, 50, 0.75);
 
-  /* Colors — Glass */
+  /* Colors - Glass */
   --glass-bg: rgba(15, 15, 35, 0.55);
   --glass-border: rgba(124, 58, 237, 0.18);
   --glass-border-hover: rgba(124, 58, 237, 0.35);
   --glass-blur: blur(24px);
 
-  /* Colors — Accent */
+  /* Colors - Accent */
   --accent-primary: #7C3AED;
   --accent-secondary: #4F46E5;
   --accent-tertiary: #6D28D9;
@@ -32,13 +32,13 @@
   --accent-gradient-vivid: linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%);
   --accent-gradient-subtle: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, rgba(79, 70, 229, 0.08) 100%);
 
-  /* Colors — Text */
+  /* Colors - Text */
   --text-primary: #F1F0F5;
   --text-secondary: #9CA3AF;
   --text-tertiary: #6B7280;
   --text-accent: #A78BFA;
 
-  /* Colors — Status */
+  /* Colors - Status */
   --success: #10B981;
   --success-glow: rgba(16, 185, 129, 0.2);
   --warning: #F59E0B;

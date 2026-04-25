@@ -1,4 +1,4 @@
-import HowItWorksFlow from '@/components/HowItWorksFlow';
+﻿import HowItWorksFlow from '@/components/HowItWorksFlow';
 import Link from 'next/link';
 
 export default function HowItWorksPage() {
@@ -109,7 +109,7 @@ export default function HowItWorksPage() {
               <h4>Arcis Circuit</h4>
               <p>
                 Rust code that runs inside Arcium&apos;s MPC network on encrypted data.
-                Defines the vote tallying logic — adding votes, comparing counts.
+                Defines the vote tallying logic - adding votes, comparing counts.
                 All arithmetic happens on secret-shared data.
               </p>
               <code
@@ -132,7 +132,7 @@ export default function HowItWorksPage() {
               <h4>Solana Program</h4>
               <p>
                 Anchor program that manages proposals, queues MPC computations,
-                stores encrypted state on-chain, and handles callbacks from the
+                stores encrypted state onchain, and handles callbacks from the
                 Arx node network.
               </p>
               <code

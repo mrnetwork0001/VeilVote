@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 export default function HowItWorksFlow() {
   const steps = [
@@ -7,7 +7,7 @@ export default function HowItWorksFlow() {
       icon: '🔗',
       title: 'Connect Your Wallet',
       description:
-        'Connect your Solana wallet (Phantom, Solflare) to VeilVote. Your wallet generates a deterministic x25519 encryption keypair through a signed message — no extra keys to manage.',
+        'Connect your Solana wallet (Phantom, Solflare) to VeilVote. Your wallet generates a deterministic x25519 encryption keypair through a signed message - no extra keys to manage.',
     },
     {
       number: 2,
@@ -21,19 +21,19 @@ export default function HowItWorksFlow() {
       icon: '📡',
       title: 'Submit to Solana',
       description:
-        'The encrypted vote ciphertext is sent as a Solana transaction to the VeilVote program. The on-chain program queues it for MPC computation — the encrypted bytes are visible, but they reveal nothing about your choice.',
+        'The encrypted vote ciphertext is sent as a Solana transaction to the VeilVote program. The onchain program queues it for MPC computation - the encrypted bytes are visible, but they reveal nothing about your choice.',
     },
     {
       number: 4,
       icon: '⚙️',
       title: 'Multi-Party Computation (MPC)',
       description:
-        'Arcium\'s distributed Arx nodes perform the vote tallying on secret-shared data. Each node holds a mathematical fragment — no single node ever sees your vote. The computation adds your vote to the encrypted running total.',
+        'Arcium\'s distributed Arx nodes perform the vote tallying on secret-shared data. Each node holds a mathematical fragment - no single node ever sees your vote. The computation adds your vote to the encrypted running total.',
     },
     {
       number: 5,
       icon: '✅',
-      title: 'Result Revealed On-Chain',
+      title: 'Result Revealed Onchain',
       description:
         'After voting ends, the authority triggers a reveal. The MPC nodes compare the encrypted yes/no counts and publish only a boolean result (pass/fail). Even after reveal, individual votes and exact counts remain encrypted forever.',
     },

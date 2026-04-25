@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import ProposalCard from '@/components/ProposalCard';
@@ -16,7 +16,7 @@ function pollToProposal(poll: OnChainPoll): Proposal {
   return {
     id: poll.id,
     title: poll.question,
-    description: `On-chain proposal #${poll.id}`,
+    description: `Onchain proposal #${poll.id}`,
     authority: poll.authority,
     createdAt,
     status,
@@ -55,7 +55,7 @@ export default function ProposalsPage() {
     }
   }, [connection]);
 
-  // Load proposals on mount — no wallet required for reading
+  // Load proposals on mount - no wallet required for reading
   useEffect(() => {
     loadProposals();
   }, [loadProposals]);

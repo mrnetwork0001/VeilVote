@@ -1,5 +1,5 @@
-// =============================================================================
-// VeilVote — Arcium SDK Wrapper
+﻿// =============================================================================
+// VeilVote - Arcium SDK Wrapper
 // Handles vote encryption simulation for the frontend demo.
 // Real encryption uses @arcium-hq/client in the test/CLI environment.
 // =============================================================================
@@ -15,7 +15,7 @@
  * fresh nonces, matching the exact byte layout expected by the Solana program.
  * 
  * @param vote - true for Yes, false for No
- * @returns Encrypted vote data ready for the on-chain instruction
+ * @returns Encrypted vote data ready for the onchain instruction
  */
 export async function encryptVote(
   vote: boolean

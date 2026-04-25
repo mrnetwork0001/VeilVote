@@ -1,5 +1,5 @@
-// =============================================================================
-// VeilVote — Solana Program Interaction
+﻿// =============================================================================
+// VeilVote - Solana Program Interaction
 // Handles proposal fetching, PDA derivation, and transaction building
 // =============================================================================
 
@@ -36,7 +36,7 @@ export function getVoterRecordPDA(
 }
 
 /**
- * Maps the on-chain status byte to a human-readable status.
+ * Maps the onchain status byte to a human-readable status.
  */
 export function parseProposalStatus(
   statusByte: number,

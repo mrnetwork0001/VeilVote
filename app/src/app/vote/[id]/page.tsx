@@ -1,363 +1,160 @@
-'use client';
+﻿'use client';
 
-import { use, useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect, useCallback } from 'react';
+import ProposalCard from '@/components/ProposalCard';
+import CreateProposalModal from '@/components/CreateProposalModal';
+import { type Proposal, type ProposalStatus } from '@/lib/types';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { PublicKey } from '@solana/web3.js';
-import { shortenAddress } from '@/lib/program';
-import { hasUserVoted, fetchAllPolls, getExplorerLink, type OnChainPoll } from '@/lib/veilvote-client';
-import VotePanel from '@/components/VotePanel';
+import { fetchAllPolls, type OnChainPoll } from '@/lib/veilvote-client';
 
-export default function VotePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
-  const proposalId = parseInt(id, 10);
+type FilterTab = 'all' | ProposalStatus;
+
+function pollToProposal(poll: OnChainPoll): Proposal {
+  const createdAt = poll.createdAt || Math.floor(Date.now() / 1000);
+  const status = poll.revealed ? 'revealed' : 'active';
+
+  return {
+    id: poll.id,
+    title: poll.question,
+    description: `Onchain proposal #${poll.id}`,
+    authority: poll.authority,
+    createdAt,
+    status,
+    result: poll.result,
+    voteState: poll.voteState,
+    nonce: poll.nonce,
+    pda: poll.pda,
+  };
+}
+
+
+export default function ProposalsPage() {
+  const { connected } = useWallet();
   const { connection } = useConnection();
-  const wallet = useWallet();
-
-  const [poll, setPoll] = useState<OnChainPoll | null>(null);
+  const [filter, setFilter] = useState<FilterTab>('all');
+  const [showModal, setShowModal] = useState(false);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [voted, setVoted] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Reveal state
-  const [revealing, setRevealing] = useState(false);
-  const [revealSig, setRevealSig] = useState<string | null>(null);
-  const [revealError, setRevealError] = useState<string | null>(null);
-
-  // Result from Arcium MPC callback
-  const [revealResult, setRevealResult] = useState<{ found: boolean; result?: boolean; signature?: string } | null>(null);
-  const [checkingResult, setCheckingResult] = useState(false);
-
-  const checkRevealResult = async (pollPda: string) => {
-    setCheckingResult(true);
-    try {
-      const res = await fetch('/api/build-tx', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'fetchRevealResult',
-          payer: PublicKey.default.toBase58(),
-          rpcUrl: connection.rpcEndpoint,
-          pollPda,
-        }),
-      });
-      const data = await res.json();
-      if (data.found) setRevealResult(data);
-    } catch {}
-    setCheckingResult(false);
-  };
-
-  useEffect(() => {
-    const loadPoll = async () => {
-      try {
-        const polls = await fetchAllPolls(connection);
-        const found = polls.find((p) => p.id === proposalId);
-        if (found) {
-          setPoll(found);
-          // Check if result already revealed
-          await checkRevealResult(found.pda);
-          if (wallet.publicKey) {
-            const alreadyVoted = await hasUserVoted(
-              connection,
-              new PublicKey(found.pda),
-              wallet.publicKey
-            );
-            setVoted(alreadyVoted);
-          }
-        }
-      } catch (err: any) {
-        console.error('Failed to load poll:', err);
-        setError(err?.message || 'Failed to load proposal');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadPoll();
-  }, [proposalId, wallet.publicKey, connection]);
-
-  const isAuthority =
-    wallet.publicKey && poll && wallet.publicKey.toBase58() === poll.authority;
-
-  const handleReveal = async () => {
-    if (!wallet.publicKey || !wallet.signTransaction || !poll) return;
-    setRevealing(true);
-    setRevealError(null);
+  const loadProposals = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
     try {
-      // 1. Server builds the reveal transaction
-      const res = await fetch('/api/build-tx', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'revealResult',
-          payer: wallet.publicKey.toBase58(),
-          rpcUrl: connection.rpcEndpoint,
-          pollId: poll.id,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to build reveal transaction');
-      }
-      const { transaction: txBase64 } = await res.json();
-
-      // 2. Wallet signs
-      const { Transaction } = await import('@solana/web3.js');
-      const tx = Transaction.from(Buffer.from(txBase64, 'base64'));
-      const signedTx = await wallet.signTransaction(tx);
-
-      // 3. Send to chain
-      const sig = await connection.sendRawTransaction(signedTx.serialize(), {
-        skipPreflight: true,
-      });
-      await connection.confirmTransaction(sig, 'confirmed');
-      setRevealSig(sig);
-      // Start polling for result — Arcium MPC callback takes a few seconds
-      const pollInterval = setInterval(async () => {
-        const res2 = await fetch('/api/build-tx', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'fetchRevealResult',
-            payer: PublicKey.default.toBase58(),
-            rpcUrl: connection.rpcEndpoint,
-            pollPda: poll.pda,
-          }),
-        });
-        const data = await res2.json();
-        if (data.found) {
-          setRevealResult(data);
-          clearInterval(pollInterval);
-        }
-      }, 5000);
-      // Stop polling after 2 minutes
-      setTimeout(() => clearInterval(pollInterval), 120000);
+      console.log('[ProposalsPage] Fetching proposals from API...');
+      const polls = await fetchAllPolls(connection);
+      console.log('[ProposalsPage] Got polls:', polls.length, polls);
+      const mappedProposals = polls.map(pollToProposal);
+      setProposals(mappedProposals);
     } catch (err: any) {
-      setRevealError(err?.message || 'Reveal failed');
+      console.error('[ProposalsPage] Failed to fetch proposals:', err);
+      setError(err?.message || 'Failed to fetch proposals from devnet');
     } finally {
-      setRevealing(false);
+      setLoading(false);
     }
-  };
+  }, [connection]);
 
-  if (loading) {
-    return (
-      <div className="page-content">
-        <div className="container">
-          <div className="empty-state">
-            <div className="empty-state-icon" style={{ animation: 'pulse-dot 1.5s infinite' }}>⏳</div>
-            <h3>Loading Proposal #{proposalId}...</h3>
-            <p>Fetching from Solana devnet...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Load proposals on mount - no wallet required for reading
+  useEffect(() => {
+    loadProposals();
+  }, [loadProposals]);
 
-  if (error || !poll) {
-    return (
-      <div className="page-content">
-        <div className="container">
-          <div className="empty-state">
-            <div className="empty-state-icon">🔍</div>
-            <h3>Proposal #{proposalId} Not Found</h3>
-            <p>{error || "This proposal doesn't exist on devnet."}</p>
-            <Link href="/proposals" className="btn btn-primary">← Back to Proposals</Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const filteredProposals = proposals.filter((p) => {
+    if (filter === 'all') return true;
+    return p.status === filter;
+  });
+
+  const tabs: { label: string; value: FilterTab }[] = [
+    { label: 'All', value: 'all' },
+    { label: 'Active', value: 'active' },
+    { label: 'Ended', value: 'ended' },
+    { label: 'Revealed', value: 'revealed' },
+  ];
 
   return (
     <div className="page-content">
       <div className="container">
-        <Link
-          href="/proposals"
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: '6px',
-            color: 'var(--text-secondary)', fontSize: '0.9rem',
-            marginBottom: 'var(--space-xl)',
-          }}
-        >
-          ← Back to Proposals
-        </Link>
-
-        <div className="vote-layout">
-          {/* Left: Proposal Details */}
-          <div className="glass-card vote-details animate-fade-in">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)', marginBottom: 'var(--space-lg)' }}>
-              {revealResult?.found ? (
-                <span className={`badge ${revealResult.result ? 'badge-revealed' : 'badge-ended'}`}>
-                  {revealResult.result ? '✅ passed' : '❌ rejected'}
-                </span>
-              ) : (
-                <span className="badge badge-active">active</span>
-              )}
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-                Proposal #{poll.id}
-              </span>
-              {isAuthority && (
-                <span style={{
-                  fontSize: '0.75rem', padding: '2px 10px',
-                  background: 'rgba(139,92,246,0.15)', color: 'var(--text-accent)',
-                  borderRadius: '999px', border: '1px solid rgba(139,92,246,0.3)',
-                }}>
-                  👑 Your Proposal
-                </span>
-              )}
-            </div>
-
-            <h1 style={{ fontSize: 'clamp(1.5rem, 3vw, 2rem)', marginBottom: 'var(--space-lg)' }}>
-              {poll.question}
+        <div className="proposals-header animate-fade-in">
+          <div>
+            <h1 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', marginBottom: 'var(--space-sm)' }}>
+              Governance Proposals
             </h1>
-
-            <div style={{
-              display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-              gap: 'var(--space-lg)', padding: 'var(--space-xl)',
-              background: 'rgba(15, 15, 35, 0.4)', borderRadius: 'var(--radius-md)',
-            }}>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Authority</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>{shortenAddress(poll.authority, 6)}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PDA</div>
-                <a href={`https://explorer.solana.com/address/${poll.pda}?cluster=devnet`}
-                  target="_blank" rel="noopener noreferrer"
-                  style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-accent)' }}>
-                  {shortenAddress(poll.pda, 6)} ↗
-                </a>
-              </div>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Network</div>
-                <div style={{ fontSize: '0.85rem' }}>Solana Devnet</div>
-              </div>
-            </div>
-
-            <div style={{
-              marginTop: 'var(--space-xl)', padding: 'var(--space-lg)',
-              background: 'var(--accent-gradient-subtle)', borderRadius: 'var(--radius-md)',
-              display: 'flex', gap: 'var(--space-md)', alignItems: 'flex-start',
-            }}>
-              <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>🔐</span>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.85rem', marginBottom: '4px' }}>Your vote is encrypted on-chain</div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  Votes are encrypted with x25519 + RescueCipher via Arcium MPC. Individual votes are never visible — only the final tally after reveal.
-                </div>
-              </div>
-            </div>
+            <p style={{ color: 'var(--text-secondary)' }}>
+              {proposals.length > 0
+                ? `${proposals.length} proposals on Solana devnet. All votes encrypted via Arcium MPC.`
+                : 'Loading proposals from Solana devnet...'}
+            </p>
           </div>
-
-          {/* Right: Vote panel OR Reveal panel for authority */}
-          <div className="vote-sidebar animate-fade-in" style={{ animationDelay: '0.15s', display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-            {/* Always show vote panel */}
-            <VotePanel
-              proposalId={poll.id}
-              proposalAuthority={poll.authority}
-              disabled={false}
-              hasVoted={voted}
-            />
-
-            {/* Reveal panel: only for proposal authority */}
-            {isAuthority && (
-              <div className="glass-card" style={{ padding: 'var(--space-xl)' }}>
-                <h4 style={{ marginBottom: 'var(--space-sm)' }}>👑 Authority Controls</h4>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 'var(--space-lg)' }}>
-                  As the proposal creator, you can request the Arcium MPC cluster to decrypt and reveal the final vote tally.
-                </p>
-
-                {revealSig ? (
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '2rem', marginBottom: 'var(--space-sm)' }}>✅</div>
-                    <p style={{ color: 'var(--success)', fontWeight: 600, marginBottom: 'var(--space-sm)', fontSize: '0.9rem' }}>
-                      Reveal requested! MPC nodes are decrypting the tally.
-                    </p>
-                    <a
-                      href={getExplorerLink(revealSig)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-ghost btn-sm"
-                    >
-                      View on Explorer ↗
-                    </a>
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      className="btn btn-primary"
-                      style={{ width: '100%' }}
-                      onClick={handleReveal}
-                      disabled={revealing}
-                      id="reveal-result-button"
-                    >
-                      {revealing ? '⏳ Sending reveal request...' : '🔓 Reveal Vote Results'}
-                    </button>
-                    {revealError && (
-                      <p style={{ color: 'var(--error)', fontSize: '0.8rem', marginTop: 'var(--space-sm)', textAlign: 'center' }}>
-                        ⚠️ {revealError}
-                      </p>
-                    )}
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: 'var(--space-md)', textAlign: 'center' }}>
-                      This submits a transaction to trigger the Arcium MPC reveal computation.
-                    </p>
-                  </>
-                )}
-              </div>
-            )}
-
-            {/* Result display — visible to everyone once MPC reveals */}
-            {revealResult?.found && (
-              <div className="glass-card" style={{
-                padding: 'var(--space-xl)', textAlign: 'center',
-                border: `1px solid ${revealResult.result ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)'}`,
-                background: revealResult.result ? 'rgba(34,197,94,0.05)' : 'rgba(239,68,68,0.05)',
-              }}>
-                <div style={{ fontSize: '3rem', marginBottom: 'var(--space-sm)' }}>
-                  {revealResult.result ? '✅' : '❌'}
-                </div>
-                <h3 style={{
-                  color: revealResult.result ? 'var(--success)' : 'var(--error)',
-                  marginBottom: 'var(--space-sm)',
-                }}>
-                  {revealResult.result ? 'Proposal Passed' : 'Proposal Rejected'}
-                </h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 'var(--space-md)' }}>
-                  Result decrypted by Arcium MPC cluster. Tally revealed on-chain.
-                </p>
-                {revealResult.signature && (
-                  <a
-                    href={getExplorerLink(revealResult.signature)}
-                    target="_blank" rel="noopener noreferrer"
-                    className="btn btn-ghost btn-sm"
-                  >
-                    View Reveal Tx ↗
-                  </a>
-                )}
-              </div>
-            )}
-
-            {/* Show polling indicator if reveal was submitted but result not yet found */}
-            {revealSig && !revealResult?.found && (
-              <div className="glass-card" style={{ padding: 'var(--space-lg)', textAlign: 'center' }}>
-                <div style={{ fontSize: '1.5rem', marginBottom: 'var(--space-sm)', animation: 'pulse-dot 1.5s infinite' }}>⏳</div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Waiting for Arcium MPC nodes to decrypt the tally...
-                </p>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  style={{ marginTop: 'var(--space-md)' }}
-                  onClick={() => poll && checkRevealResult(poll.pda)}
-                  disabled={checkingResult}
-                >
-                  {checkingResult ? 'Checking...' : '🔄 Check Now'}
-                </button>
-              </div>
-            )}
+          <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center' }}>
+            <button className="btn btn-ghost btn-sm" onClick={loadProposals} disabled={loading}>
+              🔄 Refresh
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowModal(true)}
+              disabled={!connected}
+              id="create-proposal-button"
+            >
+              ➕ New Proposal
+            </button>
           </div>
         </div>
+
+        <div className="filter-tabs" style={{ marginBottom: 'var(--space-xl)' }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.value}
+              className={`filter-tab ${filter === tab.value ? 'active' : ''}`}
+              onClick={() => setFilter(tab.value)}
+            >
+              {tab.label}
+              {tab.value !== 'all' && (
+                <span style={{ marginLeft: '6px', opacity: 0.7 }}>
+                  ({proposals.filter((p) => p.status === tab.value).length})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <div className="empty-state">
+            <div className="empty-state-icon" style={{ animation: 'pulse-dot 1.5s infinite' }}>⏳</div>
+            <h3>Loading from Devnet...</h3>
+            <p>Fetching proposals from Solana devnet...</p>
+          </div>
+        ) : error ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">⚠️</div>
+            <h3>Error Loading Proposals</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{error}</p>
+            <button className="btn btn-primary" onClick={loadProposals}>Retry</button>
+          </div>
+        ) : filteredProposals.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">🗳️</div>
+            <h3>No proposals found</h3>
+            <p>
+              {filter === 'all'
+                ? 'No proposals on devnet yet. Connect wallet & create the first one!'
+                : `No ${filter} proposals at the moment.`}
+            </p>
+          </div>
+        ) : (
+          <div className="proposals-grid stagger-children">
+            {filteredProposals.map((proposal) => (
+              <ProposalCard key={proposal.id} proposal={proposal} />
+            ))}
+          </div>
+        )}
       </div>
+
+      <CreateProposalModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onCreated={loadProposals}
+      />
     </div>
   );
 }

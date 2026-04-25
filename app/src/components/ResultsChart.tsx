@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 interface ResultsChartProps {
   result: boolean;
@@ -8,7 +8,7 @@ interface ResultsChartProps {
 export default function ResultsChart({ result, totalVotes }: ResultsChartProps) {
   // Since reveal_result only returns a boolean (yes > no),
   // we show the verdict rather than exact counts.
-  // This is by design — individual counts are never revealed.
+  // This is by design - individual counts are never revealed.
 
   return (
     <div className="glass-card" style={{ padding: 'var(--space-xl)' }}>
@@ -86,7 +86,7 @@ export default function ResultsChart({ result, totalVotes }: ResultsChartProps) 
         color: 'var(--text-secondary)',
         textAlign: 'center',
       }}>
-        💡 Only the boolean result (pass/fail) is revealed. Individual vote counts remain encrypted — this prevents vote-buying and strategic voting.
+        💡 Only the boolean result (pass/fail) is revealed. Individual vote counts remain encrypted - this prevents vote-buying and strategic voting.
       </div>
     </div>
   );

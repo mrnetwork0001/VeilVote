@@ -1,4 +1,4 @@
-import Link from 'next/link';
+﻿import Link from 'next/link';
 import DeploymentBanner from '@/components/DeploymentBanner';
 
 export default function Home() {
@@ -20,8 +20,8 @@ export default function Home() {
         </h1>
 
         <p className="hero-subtitle">
-          Cast encrypted votes on Solana. No one sees how you voted — not even the
-          nodes processing your vote. Only final results are revealed on-chain.
+          Cast encrypted votes on Solana. No one sees how you voted - not even the
+          nodes processing your vote. Only final results are revealed onchain.
         </p>
 
         <div className="hero-actions">
@@ -47,7 +47,7 @@ export default function Home() {
           {[
             { value: '100%', label: 'Vote Privacy', icon: '🔐' },
             { value: 'Zero', label: 'Knowledge Leakage', icon: '🛡️' },
-            { value: 'On-Chain', label: 'Verifiable Results', icon: '✅' },
+            { value: 'Onchain', label: 'Verifiable Results', icon: '✅' },
             { value: 'Solana', label: 'Speed & Scale', icon: '⚡' },
           ].map((stat) => (
             <div
@@ -86,7 +86,7 @@ export default function Home() {
             Why <span className="text-gradient">VeilVote</span>?
           </h2>
           <p>
-            Traditional DAO voting is public — enabling vote-buying, coercion, and
+            Traditional DAO voting is public - enabling vote-buying, coercion, and
             frontrunning. VeilVote fixes this.
           </p>
         </div>
@@ -106,8 +106,8 @@ export default function Home() {
             <div className="feature-icon">✅</div>
             <h4>Verifiable Results</h4>
             <p>
-              Despite full privacy, results are cryptographically verifiable on-chain.
-              The MPC computation produces correctness proofs — you can trust the
+              Despite full privacy, results are cryptographically verifiable onchain.
+              The MPC computation produces correctness proofs - you can trust the
               tally without trusting any single party.
             </p>
           </div>
@@ -116,7 +116,7 @@ export default function Home() {
             <div className="feature-icon">🛡️</div>
             <h4>Coercion Resistant</h4>
             <p>
-              Since individual votes are never revealed — not even the yes/no counts —
+              Since individual votes are never revealed - not even the yes/no counts —
               no one can coerce voters or prove how someone voted. True secret ballot
               democracy for DAOs.
             </p>
@@ -136,7 +136,7 @@ export default function Home() {
             <div className="feature-icon">🔄</div>
             <h4>Sybil Resistant</h4>
             <p>
-              Each wallet can only vote once per proposal, enforced by on-chain PDAs.
+              Each wallet can only vote once per proposal, enforced by onchain PDAs.
               Combined with encryption, this prevents both double-voting and
               vote-buying attacks.
             </p>
@@ -169,7 +169,7 @@ export default function Home() {
             How Does <span className="text-gradient">Encrypted Voting</span> Work?
           </h2>
           <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto var(--space-xl)' }}>
-            Arcium uses Multi-Party Computation (MPC) — a cryptographic technique where
+            Arcium uses Multi-Party Computation (MPC) - a cryptographic technique where
             multiple nodes compute on secret-shared data. No single node ever sees your vote.
           </p>
 
@@ -229,7 +229,7 @@ export default function Home() {
           >
             Arcium Skills
           </a>{' '}
-          bounty program — Private Voting (DAO Governance)
+          bounty program - Private Voting (DAO Governance)
         </p>
         <p style={{ marginTop: 'var(--space-sm)' }}>
           VeilVote © {new Date().getFullYear()} · MIT License ·{' '}

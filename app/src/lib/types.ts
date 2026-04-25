@@ -1,5 +1,5 @@
-// =============================================================================
-// VeilVote — TypeScript Types
+﻿// =============================================================================
+// VeilVote - TypeScript Types
 // =============================================================================
 
 export interface Proposal {
@@ -56,7 +56,7 @@ export const VOTE_STEPS: VoteStatusStep[] = [
   {
     id: 'finalized',
     label: 'Finalized',
-    description: 'Vote counted — encrypted tally updated',
+    description: 'Vote counted - encrypted tally updated',
     icon: '✅',
   },
 ];
@@ -80,5 +80,4 @@ export const PROGRAM_ID = 'B9xuJHLGqgb2szy76qBUiXrAFpYgx4g7aUZrEDimsRFk';
 // Network configuration
 export const NETWORK = 'devnet';
 export const RPC_ENDPOINT = 'https://api.devnet.solana.com';
-
 

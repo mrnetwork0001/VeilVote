@@ -1,4 +1,4 @@
-// =============================================================================
+﻿// =============================================================================
 // API Route: /api/build-tx
 // Builds transactions server-side using @arcium-hq/client + Anchor IDL
 // Returns serialized transaction for client-side wallet signing
@@ -40,7 +40,7 @@ let cachedIdl: any = null;
 // Server-side caches
 // ---------------------------------------------------------------------------
 
-// Polls list cache (30 second TTL — fast enough for content changes)
+// Polls list cache (30 second TTL - fast enough for content changes)
 interface PollsCache { data: any; expiresAt: number; }
 let pollsCache: PollsCache | null = null;
 
@@ -54,7 +54,7 @@ function setCachedPolls(data: any) {
 function invalidatePollsCache() { pollsCache = null; }
 
 // PERMANENT reveal result cache (key = poll PDA, value = boolean result)
-// Once a poll is revealed, it stays revealed forever — no need for TTL.
+// Once a poll is revealed, it stays revealed forever - no need for TTL.
 // Populated by fetchRevealResult (called from vote page auto-poller).
 const revealedPollsCache = new Map<string, boolean>();
 
@@ -106,14 +106,14 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'createProposal':
         result = await buildCreateProposal(program, connection, payerPubkey, params);
-        invalidatePollsCache(); // new proposal — fresh fetch next time
+        invalidatePollsCache(); // new proposal - fresh fetch next time
         break;
       case 'vote':
         result = await buildVote(program, connection, payerPubkey, params);
         break;
       case 'revealResult':
         result = await buildRevealResult(program, connection, payerPubkey, params);
-        invalidatePollsCache(); // reveal changes status — fresh fetch next time
+        invalidatePollsCache(); // reveal changes status - fresh fetch next time
         break;
       case 'fetchPolls':
         result = await fetchPolls(program, connection);
@@ -320,7 +320,7 @@ async function buildRevealResult(
 }
 
 // ---------------------------------------------------------------------------
-// Fetch Polls (FAST — single RPC call + in-memory reveal cache)
+// Fetch Polls (FAST - single RPC call + in-memory reveal cache)
 // ---------------------------------------------------------------------------
 
 async function fetchPolls(program: anchor.Program, connection: Connection) {
@@ -370,7 +370,7 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
   return result;
 }
 
-// Background reveal cache bootstrap — runs without blocking
+// Background reveal cache bootstrap - runs without blocking
 let bootstrapRunning = false;
 async function bootstrapRevealCache(connection: Connection, pdas: string[]) {
   if (bootstrapRunning) return;
@@ -393,7 +393,7 @@ async function bootstrapRevealCache(connection: Connection, pdas: string[]) {
 
 
 // ---------------------------------------------------------------------------
-// Fetch Reveal Result (for individual poll — called from vote page)
+// Fetch Reveal Result (for individual poll - called from vote page)
 // ---------------------------------------------------------------------------
 // The Arcium MPC callback tx does NOT reference the poll PDA (registered with
 // &[] callback accounts). So we can't find it via getSignaturesForAddress(pollPDA).

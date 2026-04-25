@@ -1,5 +1,5 @@
-// =============================================================================
-// VeilVote — On-Chain Client (Browser-Compatible)
+﻿// =============================================================================
+// VeilVote - Onchain Client (Browser-Compatible)
 // All transaction building happens server-side via /api/build-tx
 // Client only handles: wallet signing + sending + reading accounts
 // =============================================================================
@@ -53,7 +53,7 @@ async function callBuildTx(action: string, payer: string, rpcUrl: string, params
 }
 
 // ---------------------------------------------------------------------------
-// Fetch On-Chain Proposals (via server API)
+// Fetch Onchain Proposals (via server API)
 // ---------------------------------------------------------------------------
 
 export interface OnChainPoll {

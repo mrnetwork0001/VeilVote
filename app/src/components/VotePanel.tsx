@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -57,7 +57,7 @@ export default function VotePanel({ proposalId, proposalAuthority, disabled = fa
         <div style={{ fontSize: '2rem', marginBottom: 'var(--space-md)' }}>✅</div>
         <h4 style={{ marginBottom: 'var(--space-sm)' }}>Vote Recorded</h4>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-          Your encrypted vote has been tallied on-chain.
+          Your encrypted vote has been tallied onchain.
         </p>
       </div>
     );
@@ -120,7 +120,7 @@ export default function VotePanel({ proposalId, proposalAuthority, disabled = fa
           id="vote-option-yes"
         >
           <div className="vote-option-radio" />
-          <span className="vote-option-label">👍 Yes — Approve</span>
+          <span className="vote-option-label">👍 Yes - Approve</span>
         </button>
 
         <button
@@ -130,7 +130,7 @@ export default function VotePanel({ proposalId, proposalAuthority, disabled = fa
           id="vote-option-no"
         >
           <div className="vote-option-radio" />
-          <span className="vote-option-label">👎 No — Reject</span>
+          <span className="vote-option-label">👎 No - Reject</span>
         </button>
       </div>
 

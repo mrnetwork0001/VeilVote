@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -127,7 +127,7 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
                 >
                   {VOTING_PERIODS.map((p, i) => (
                     <option key={i} value={i}>
-                      {p.label} — {p.description}
+                      {p.label} - {p.description}
                     </option>
                   ))}
                 </select>
@@ -146,7 +146,7 @@ export default function CreateProposalModal({ isOpen, onClose, onCreated }: Crea
                 fontSize: '0.8rem',
                 color: 'var(--text-secondary)',
               }}>
-                🔐 This creates a real on-chain proposal on Solana devnet. Your wallet will sign the transaction.
+                🔐 This creates a real onchain proposal on Solana devnet. Your wallet will sign the transaction.
               </div>
             </>
           )}
