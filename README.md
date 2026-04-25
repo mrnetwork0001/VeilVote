@@ -52,21 +52,18 @@ VeilVote is a three-layer application built on Arcium's encrypted computation fr
 
 ```
 
- -  -  -  -  -  -  -  -  -  - Frontend (Next.js) -  -  -  -  -  -  -  -  -  -  
- - Connect Wallet - Encrypt Vote - Submit - Track Status -  
-
- -  -  -  -  -  -  -  -  -  -  -  -  -  
-
- -  -  -  -  -  -  - Solana Program (Anchor + Arcium) -  -  -  -  -  -  
- - Create Proposal - Queue MPC - Store Encrypted State -  -  
- - Callback - Update Tally - Reveal Result -  -  -  -  -  -  -  -  
-
- -  -  -  -  -  -  -  -  -  -  -  -  -  
-
- -  -  -  -  -  -  - Arcium MPC Network (Arx Nodes) -  -  -  -  -  -  - 
- - Secret-shared computation on encrypted votes -  -  -  -  -  - 
- - No single node sees any individual vote -  -  -  -  -  -  -  -  
-
+  [Frontend (Next.js)]
+    Connect Wallet -> Encrypt Vote -> Submit -> Track Status
+        |
+        v
+  [Solana Program (Anchor + Arcium)]
+    Create Proposal -> Queue MPC -> Store Encrypted State
+    Callback -> Update Tally -> Reveal Result
+        |
+        v
+  [Arcium MPC Network (Arx Nodes)]
+    Secret-shared computation on encrypted votes
+    No single node sees any individual vote
 ```
 
 ### Three Surfaces
@@ -92,17 +89,17 @@ Traditional DAO voting on Solana is fully transparent - anyone can see who voted
 ### How VeilVote Solves This
 
 ```
-User's Browser -  -  -  -  -  -  -  -  -  -  - Solana -  -  -  -  -  -  -  -  -  - Arcium MPC Cluster
- -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  
-1. Generate x25519 keypair
-2. Derive shared secret with MXE
-3. Encrypt vote (RescueCipher)
-4. Send ciphertext to program - Store in PDA
-5. -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  - Queue computation - Receive fragments
-6. -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  Run secret-shared
- -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  addition on votes
-7. -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  - Callback with result - Return ciphertext
-8. -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  - Store updated tally
+  User's Browser           Solana              Arcium MPC Cluster
+  ---------------          ------              ------------------
+  1. Generate x25519 keypair
+  2. Derive shared secret with MXE
+  3. Encrypt vote (RescueCipher)
+  4. Send ciphertext -----> Store in PDA
+  5.                        Queue computation -> Receive fragments
+  6.                                             Run secret-shared
+                                                 addition on votes
+  7.                        Callback with result <- Return ciphertext
+  8.                        Store updated tally
 ```
 
 1. **Local Encryption**: Your vote is encrypted in your browser using x25519 key exchange + RescueCipher. The plaintext **NEVER** leaves your device.
@@ -128,18 +125,18 @@ User's Browser -  -  -  -  -  -  -  -  -  -  - Solana -  -  -  -  -  -  -  -  - 
 The reveal process is **asynchronous** - it spans multiple Solana transactions:
 
 ```
-User clicks "Reveal" -  -  -  -  Arcium MPC Cluster -  -  -  -  -  -  - Solana
- -  -  -  -  -  -  -  -  -  -  -  
-1. Sign RevealResult tx -  
-2. -  -  -  -  -  -  -  -  -  -  -  -  -  QueueComputation logged
-3. -  -  -  -  -  -  -  -  -  -  -  -  -  MPC nodes pick up job
-4. -  -  -  -  -  -  -  -  -  -  -  -  -  Threshold decryption -  -  -  -  -  - 
- -  -  -  -  -  -  -  -  -  -  -  -  -  -  (quorum of Arx nodes
- -  -  -  -  -  -  -  -  -  -  -  -  -  -  - collaborate on secret-
- -  -  -  -  -  -  -  -  -  -  -  -  -  -  - shared key fragments)
-5. -  -  -  -  -  -  -  -  -  -  -  -  -  Submit callback tx -  reveal_result_callback
-6. -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  emit!(RevealResultEvent)
-7. Frontend auto-polls -  -  Result: true/false
+  User clicks "Reveal"    Arcium MPC Cluster         Solana
+  --------------------    ------------------         ------
+  1. Sign RevealResult tx
+  2.                      QueueComputation logged
+  3.                      MPC nodes pick up job
+  4.                      Threshold decryption
+                          (quorum of Arx nodes
+                           collaborate on secret-
+                           shared key fragments)
+  5.                      Submit callback tx -----> reveal_result_callback
+  6.                                                emit!(RevealResultEvent)
+  7. Frontend auto-polls <--------------------- Result: true/false
 ```
 
 #### Devnet Timing Expectations
@@ -152,7 +149,7 @@ User clicks "Reveal" -  -  -  -  Arcium MPC Cluster -  -  -  -  -  -  - Solana
 | **Callback** | Nodes submit `reveal_result_callback` tx with the boolean result | ~10s |
 | **Total** | End-to-end from button click to result display | **1 - 5 minutes** |
 
-> **Note for Arcium Reviewers**: On devnet, the MPC cluster has limited nodes and processes computations sequentially, so longer wait times (up to 5 minutes) are expected. On mainnet with a full Arx cluster, the same process typically completes in **1030 seconds**.
+> **Note for Arcium Reviewers**: On devnet, the MPC cluster has limited nodes and processes computations sequentially, so longer wait times (up to 5 minutes) are expected. On mainnet with a full Arx cluster, the same process typically completes in **10-30 seconds**.
 
 #### How the Frontend Handles Async Reveal
 
