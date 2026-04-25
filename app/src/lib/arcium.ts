@@ -1,38 +1,12 @@
-﻿// =============================================================================
-// VeilVote - Arcium SDK Wrapper
-// Handles vote encryption simulation for the frontend demo.
-// Real encryption uses @arcium-hq/client in the test/CLI environment.
 // =============================================================================
-
-/**
- * Encrypts a vote for submission.
- * 
- * In the frontend, this simulates the encryption process that would normally
- * use RescueCipher from @arcium-hq/client. The actual encryption happens
- * server-side or in the test environment with the real Arcium SDK.
- * 
- * The simulation is realistic: it generates proper-sized ciphertexts and
- * fresh nonces, matching the exact byte layout expected by the Solana program.
- * 
- * @param vote - true for Yes, false for No
- * @returns Encrypted vote data ready for the onchain instruction
- */
-export async function encryptVote(
-  vote: boolean
-): Promise<{
-  ciphertext: Uint8Array;
-  nonce: Uint8Array;
-}> {
-  // Generate a fresh 16-byte nonce (NEVER reuse!)
-  const nonce = new Uint8Array(16);
-  crypto.getRandomValues(nonce);
-
-  // RescueCipher always produces 32 bytes per encrypted scalar
-  const ciphertext = new Uint8Array(32);
-  crypto.getRandomValues(ciphertext);
-
-  return { ciphertext, nonce };
-}
+// VeilVote - Arcium Client Utilities (Browser-Safe Layer)
+//
+// NOTE: The actual vote encryption using @arcium-hq/client (x25519 key exchange
+// + RescueCipher) runs SERVER-SIDE in /api/build-tx/route.ts. This is because
+// @arcium-hq/client has Node.js dependencies that cannot run in the browser.
+//
+// This file provides browser-safe helper functions and type definitions.
+// =============================================================================
 
 /**
  * Deserializes a little-endian byte array to a BigInt.
@@ -47,17 +21,23 @@ export function deserializeLE(bytes: Uint8Array): bigint {
 }
 
 /**
- * Simulates the vote encryption delay for UX purposes.
- * In production, this would be the actual x25519 + RescueCipher time.
+ * Generates a cryptographically secure 16-byte nonce for client-side use.
+ * Server-side encryption uses randomBytes(16) from Node.js crypto module.
  */
-export async function simulateEncryption(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 1200));
+export function generateNonce(): Uint8Array {
+  const nonce = new Uint8Array(16);
+  crypto.getRandomValues(nonce);
+  return nonce;
 }
 
 /**
- * Simulates waiting for MPC computation finalization.
- * In production, this would poll awaitComputationFinalization from @arcium-hq/client.
+ * Returns the Arcium program ID on Solana Devnet.
+ * Address: Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ
  */
-export async function simulateComputation(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 2500));
-}
+export const ARCIUM_PROGRAM_ID = 'Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ';
+
+/**
+ * The Arcium cluster offset used by VeilVote (devnet cluster #456).
+ * Corresponds to the Arcium Devnet Arx node cluster used for MPC computations.
+ */
+export const ARCIUM_CLUSTER_OFFSET = 456;

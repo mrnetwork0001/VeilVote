@@ -5,7 +5,32 @@
 [![Built with Arcium](https://img.shields.io/badge/Built%20with-Arcium-7C3AED)](https://arcium.com)
 [![Solana](https://img.shields.io/badge/Chain-Solana-14F195)](https://solana.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-veilvote.online-33ff00)](https://veilvote.online)
 [![Devnet](https://img.shields.io/badge/Network-Devnet-yellow)](https://explorer.solana.com/address/B9xuJHLGqgb2szy76qBUiXrAFpYgx4g7aUZrEDimsRFk?cluster=devnet)
+
+🌐 **Live App:** [https://veilvote.online](https://veilvote.online)
+
+---
+
+## 🔒 How VeilVote Uses Arcium — The Core Integration
+
+VeilVote's entire privacy model is powered by [Arcium's](https://arcium.com) Multi-Party Computation (MPC) network. Here is exactly how Arcium is used and what privacy benefits it provides:
+
+### What Arcium Does in VeilVote
+
+| Integration Point | Arcium Component Used | Privacy Benefit |
+|---|---|---|
+| **Vote Encryption** | `x25519` key exchange + `RescueCipher` via `@arcium-hq/client` | Your plaintext vote never leaves your browser |
+| **Encrypted Tally** | `arcis` MPC circuit (`vote` instruction) | Votes are added together while still encrypted — no node sees individual votes |
+| **Result Reveal** | `arcis` MPC circuit (`reveal_result` instruction) | Only a boolean (pass/fail) is revealed — exact vote counts stay encrypted forever |
+| **Computation Queuing** | Arcium's `QueueComputation` CPI on Solana | Job dispatched to off-chain MPC Arx nodes without revealing inputs |
+| **Callback** | `reveal_result_callback` instruction | MPC nodes deliver the decrypted result back to Solana via a verifiable transaction |
+
+### Why Arcium and Not FHE or ZK Proofs?
+
+- **vs FHE**: Arcium MPC is orders of magnitude faster and natively Solana-compatible
+- **vs ZK Proofs**: ZK proves computation correctness but doesn't enable multi-party private inputs — you can't accumulate votes from hundreds of voters without revealing them
+- **Arcium's unique advantage**: Multiple independent Arx nodes each hold a mathematical *share* of the key. No single node — not even Arcium itself — can decrypt a vote alone. Collusion requires compromising a threshold of nodes simultaneously.
 
 ---
 
@@ -384,22 +409,23 @@ Only the boolean result is revealed — exact counts remain encrypted forever.
 
 ## 🎨 Frontend
 
-Premium dark theme with glassmorphism, inspired by modern DeFi dashboards.
+Brutalist Terminal CLI theme — high-contrast monospace design inspired by hacker culture and secure systems, reinforcing the privacy-first message visually.
 
 ### Pages
 | Page | Route | Description |
 |------|-------|-------------|
-| Landing | `/` | Hero section, feature cards, live stats, CTA |
-| Proposals | `/proposals` | Filterable grid with countdown timers |
-| Vote | `/vote/[id]` | Vote casting with 4-stage progress tracker |
-| How It Works | `/how-it-works` | Step-by-step MPC explainer |
+| Landing | `/` | Two-column hero: copy + live Arcium MPC node animation canvas |
+| Proposals | `/proposals` | Filterable grid of all on-chain proposals |
+| Vote | `/vote/[id]` | Vote casting + encrypted submission + authority reveal panel |
+| How It Works | `/how-it-works` | Step-by-step MPC explainer with comparison table |
 
 ### Design System
-- Deep dark background (`#07070f`)
-- Purple/violet accent gradient (`#7C3AED → #4F46E5`)
-- Glass cards with frosted borders and blur effects
-- Outfit + Inter typography (Google Fonts)
-- Micro-animations, hover effects, and staggered reveals
+- Deep black terminal background (`#0a0a0a`) with CRT scanline overlay
+- Phosphor terminal green (`#33ff00`) primary accent with amber (`#ffb000`) secondary
+- Zero border-radius — sharp edges everywhere for brutalist aesthetic
+- `JetBrains Mono` monospace font throughout
+- Micro-animations, blinking cursors, glowing text-shadow on interactive elements
+- Live canvas animation showing encrypted vote particles flowing into MPC Arx nodes
 
 ---
 
