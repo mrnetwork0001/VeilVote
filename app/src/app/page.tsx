@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import DeploymentBanner from '@/components/DeploymentBanner';
+import HeroCanvas from '@/components/HeroCanvas';
 
 export default function Home() {
   return (
@@ -7,30 +8,40 @@ export default function Home() {
       <DeploymentBanner />
       {/* ============ HERO ============ */}
       <section className="hero container">
-        <div className="hero-badge">
-          <span>&gt;</span>
-          [ ARCIUM MPC ] // ENCRYPTED GOVERNANCE
-        </div>
+        <div className="hero-two-col">
+          {/* Left: copy */}
+          <div className="hero-left">
+            <div className="hero-badge">
+              <span>&gt;</span>
+              [ ARCIUM MPC ] // ENCRYPTED GOVERNANCE
+            </div>
 
-        <h1>
-          <span className="text-gradient">PRIVATE. VERIFIABLE.</span>
-          <br />
-          GOVERNANCE_
-        </h1>
+            <h1>
+              <span className="text-gradient">PRIVATE. VERIFIABLE.</span>
+              <br />
+              GOVERNANCE_
+            </h1>
 
-        <p className="hero-subtitle">
-          $ cast encrypted votes on solana. no one sees how you voted --
-          not even the nodes processing your vote. only final results
-          are revealed onchain.
-        </p>
+            <p className="hero-subtitle">
+              $ cast encrypted votes on solana. no one sees how you voted --
+              not even the nodes processing your vote. only final results
+              are revealed onchain.
+            </p>
 
-        <div className="hero-actions">
-          <Link href="/proposals" className="btn btn-primary btn-lg" id="cta-proposals">
-            [ BROWSE PROPOSALS ]
-          </Link>
-          <Link href="/how-it-works" className="btn btn-secondary btn-lg" id="cta-how-it-works">
-            [ HOW IT WORKS ] --help
-          </Link>
+            <div className="hero-actions">
+              <Link href="/proposals" className="btn btn-primary btn-lg" id="cta-proposals">
+                [ BROWSE PROPOSALS ]
+              </Link>
+              <Link href="/how-it-works" className="btn btn-secondary btn-lg" id="cta-how-it-works">
+                [ HOW IT WORKS ] --help
+              </Link>
+            </div>
+          </div>
+
+          {/* Right: live MPC animation */}
+          <div className="hero-right">
+            <HeroCanvas />
+          </div>
         </div>
       </section>
 
