@@ -34,7 +34,7 @@ VeilVote's entire privacy model is powered by [Arcium's](https://arcium.com) Mul
 
 ---
 
-## - Deployed on Solana Devnet
+## Deployed on Solana Devnet
 
 | Resource | Value |
 |----------|-------|
@@ -46,37 +46,40 @@ VeilVote's entire privacy model is powered by [Arcium's](https://arcium.com) Mul
 
 ---
 
-## - Architecture
+## Architecture
 
 VeilVote is a three-layer application built on Arcium's encrypted computation framework:
 
 ```
-
-  [Frontend (Next.js)]
-    Connect Wallet -> Encrypt Vote -> Submit -> Track Status
-        |
-        v
-  [Solana Program (Anchor + Arcium)]
-    Create Proposal -> Queue MPC -> Store Encrypted State
-    Callback -> Update Tally -> Reveal Result
-        |
-        v
-  [Arcium MPC Network (Arx Nodes)]
-    Secret-shared computation on encrypted votes
-    No single node sees any individual vote
+┌─────────────────────────────────────────────────────────┐
+│                    Frontend (Next.js)                     │
+│  Connect Wallet → Encrypt Vote → Submit → Track Status   │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────┐
+│              Solana Program (Anchor + Arcium)             │
+│  Create Proposal → Queue MPC → Store Encrypted State     │
+│  Callback → Update Tally → Reveal Result                 │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────┐
+│              Arcium MPC Network (Arx Nodes)              │
+│  Secret-shared computation on encrypted votes            │
+│  No single node sees any individual vote                 │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ### Three Surfaces
 
 | Surface | Language | Purpose |
-|---------|----------|---------|
+|---------|----------|---------| 
 | **Arcis Circuit** (`encrypted-ixs/`) | Rust | MPC logic: init tallies, accumulate votes, compare results |
 | **Solana Program** (`programs/veilvote/`) | Rust | Proposal management, queue/callback lifecycle, PDA storage |
 | **Client** (`app/` + `tests/`) | TypeScript | Key exchange, encryption, submission, decryption, UI |
 
 ---
 
-## - How Arcium Provides Privacy
+## How Arcium Provides Privacy
 
 ### The Problem with Public Voting
 
@@ -89,17 +92,17 @@ Traditional DAO voting on Solana is fully transparent - anyone can see who voted
 ### How VeilVote Solves This
 
 ```
-  User's Browser           Solana              Arcium MPC Cluster
-  ---------------          ------              ------------------
-  1. Generate x25519 keypair
-  2. Derive shared secret with MXE
-  3. Encrypt vote (RescueCipher)
-  4. Send ciphertext -----> Store in PDA
-  5.                        Queue computation -> Receive fragments
-  6.                                             Run secret-shared
-                                                 addition on votes
-  7.                        Callback with result <- Return ciphertext
-  8.                        Store updated tally
+User's Browser                      Solana                    Arcium MPC Cluster
+─────────────────                   ──────                    ──────────────────
+1. Generate x25519 keypair
+2. Derive shared secret with MXE
+3. Encrypt vote (RescueCipher)
+4. Send ciphertext to program ──────► Store in PDA
+5.                                    Queue computation ─────► Receive fragments
+6.                                                             Run secret-shared
+                                                               addition on votes
+7.                                    Callback with result ◄── Return ciphertext
+8.                                    Store updated tally
 ```
 
 1. **Local Encryption**: Your vote is encrypted in your browser using x25519 key exchange + RescueCipher. The plaintext **NEVER** leaves your device.
@@ -114,29 +117,29 @@ Traditional DAO voting on Solana is fully transparent - anyone can see who voted
 
 | Property | Guarantee |
 |----------|-----------|
-| Individual vote secrecy | - No one (including Arx nodes) sees your vote |
-| Tally secrecy | - Vote counts are never revealed, only pass/fail |
-| Vote integrity | - MPC correctness proofs ensure accurate tallying |
-| Double-vote prevention | - On-chain VoterRecord PDAs prevent re-voting |
-| Coercion resistance | - Voters cannot prove how they voted |
+| Individual vote secrecy | No one (including Arx nodes) sees your vote |
+| Tally secrecy | Vote counts are never revealed, only pass/fail |
+| Vote integrity | MPC correctness proofs ensure accurate tallying |
+| Double-vote prevention | On-chain VoterRecord PDAs prevent re-voting |
+| Coercion resistance | Voters cannot prove how they voted |
 
-### - MPC Reveal Lifecycle & Timing
+### MPC Reveal Lifecycle & Timing
 
 The reveal process is **asynchronous** - it spans multiple Solana transactions:
 
 ```
-  User clicks "Reveal"    Arcium MPC Cluster         Solana
-  --------------------    ------------------         ------
-  1. Sign RevealResult tx
-  2.                      QueueComputation logged
-  3.                      MPC nodes pick up job
-  4.                      Threshold decryption
-                          (quorum of Arx nodes
-                           collaborate on secret-
-                           shared key fragments)
-  5.                      Submit callback tx -----> reveal_result_callback
-  6.                                                emit!(RevealResultEvent)
-  7. Frontend auto-polls <--------------------- Result: true/false
+User clicks "Reveal"         Arcium MPC Cluster              Solana
+─────────────────────        ─────────────────               ──────
+1. Sign RevealResult tx ──►  
+2.                           QueueComputation logged
+3.                           MPC nodes pick up job
+4.                           Threshold decryption            
+                             (quorum of Arx nodes
+                              collaborate on secret-
+                              shared key fragments)
+5.                           Submit callback tx ──────────►  reveal_result_callback
+6.                                                           emit!(RevealResultEvent)
+7. Frontend auto-polls   ◄──────────────────────────────────  Result: true/false
 ```
 
 #### Devnet Timing Expectations
@@ -153,7 +156,7 @@ The reveal process is **asynchronous** - it spans multiple Solana transactions:
 
 #### How the Frontend Handles Async Reveal
 
-1. **After the user signs the `RevealResult` tx**, the frontend shows a - polling indicator
+1. **After the user signs the `RevealResult` tx**, the frontend shows a polling indicator
 2. **Every 5 seconds**, it calls `fetchRevealResult` to check for the callback
 3. **The server traces the computation_account** created in the user's reveal tx, then searches that account's signatures for the Arcium callback tx containing the `RevealResultEvent`
 4. **Once found**, the result (`true` = Passed, `false` = Rejected) is displayed and permanently cached server-side
@@ -170,7 +173,7 @@ The `reveal_result_callback` is registered with `&[]` callback accounts in the S
 
 ---
 
-## - Tech Stack
+## Tech Stack
 
 ### Backend
 - **Solana** - High-performance L1 blockchain
@@ -182,55 +185,55 @@ The `reveal_result_callback` is registered with `&[]` callback accounts in the S
 ### Frontend
 - **Next.js 14** - React framework with App Router
 - **TypeScript** - Type-safe client code
-- **Vanilla CSS** - Custom glassmorphism design system
+- **Vanilla CSS** - Custom terminal CLI design system
 - **@solana/wallet-adapter** - Phantom/Solflare wallet connection
 - **@arcium-hq/client** - Arcium TypeScript SDK for key exchange and encryption
 
 ---
 
-## - Project Structure
+## Project Structure
 
 ```
 VeilVote/
- Anchor.toml -  -  -  -  -  -  -  -  -  -  -  # Anchor config (devnet, program ID, RPC)
- Arcium.toml -  -  -  -  -  -  -  -  -  -  -  # Arcium config (cluster offset: 456)
- Cargo.toml -  -  -  -  -  -  -  -  -  -  -  - # Workspace manifest
- package.json -  -  -  -  -  -  -  -  -  -  - # Root test dependencies
- tsconfig.json -  -  -  -  -  -  -  -  -  -  # TypeScript config for tests
-
- encrypted-ixs/ -  -  -  -  -  -  -  -  -  - # - Arcis MPC Circuits
- -  - Cargo.toml -  -  -  -  -  -  -  -  -  - # -  - arcis = "0.9.6" dependency
- -  - src/
- -  -  -  - lib.rs -  -  -  -  -  -  -  -  -  - # -  - 3 encrypted instructions:
- -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  # -  -  -  init_vote_stats - (initialize encrypted counters)
- -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  # -  -  -  vote -  -  -  -  -  -  (add encrypted vote to tally)
- -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  # -  -  -  reveal_result -  - (decrypt yes > no comparison)
-
- programs/veilvote/ -  -  -  -  -  -  -  - # - Anchor Solana Program
- -  - Cargo.toml -  -  -  -  -  -  -  -  -  - # -  - arcium-anchor = "0.9.6"
- -  - src/
- -  -  -  - lib.rs -  -  -  -  -  -  -  -  -  - # -  - 9 instructions:
- -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  # -  -  -  3 init_comp_def - (register circuits)
- -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  # -  -  -  3 queue + callback (create poll, vote, reveal)
- -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  # -  -  -  PollAccount, VoterRecord PDAs
-
- tests/
- -  - veilvote.ts -  -  -  -  -  -  -  -  -  # - Full integration test suite
- -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  # -  - Tests all 3 phases on devnet MPC cluster
-
- app/ -  -  -  -  -  -  -  -  -  -  -  -  -  -  - # - Next.js 14 Frontend
- -  - src/
- -  -  -  - app/ -  -  -  -  -  -  -  -  -  -  - # -  - Pages: landing, proposals, vote/[id], how-it-works
- -  -  -  - components/ -  -  -  -  -  -  -  # -  - 9 React components
- -  -  -  - lib/ -  -  -  -  -  -  -  -  -  -  - # -  - SDK wrappers, types, constants
-
- scripts/
- -  -  vps-setup.sh -  -  -  -  -  -  -  -  - # - VPS toolchain installer
+├── Anchor.toml                       # Anchor config (devnet, program ID, RPC)
+├── Arcium.toml                       # Arcium config (cluster offset: 456)
+├── Cargo.toml                        # Workspace manifest
+├── package.json                      # Root test dependencies
+├── tsconfig.json                     # TypeScript config for tests
+│
+├── encrypted-ixs/                    # Arcis MPC Circuits
+│   ├── Cargo.toml                    #    arcis = "0.9.6" dependency
+│   └── src/
+│       └── lib.rs                    #    3 encrypted instructions:
+│                                     #      - init_vote_stats  (initialize encrypted counters)
+│                                     #      - vote             (add encrypted vote to tally)
+│                                     #      - reveal_result    (decrypt yes > no comparison)
+│
+├── programs/veilvote/                # Anchor Solana Program
+│   ├── Cargo.toml                    #    arcium-anchor = "0.9.6"
+│   └── src/
+│       └── lib.rs                    #    9 instructions:
+│                                     #      - 3 init_comp_def  (register circuits)
+│                                     #      - 3 queue + callback (create poll, vote, reveal)
+│                                     #      - PollAccount, VoterRecord PDAs
+│
+├── tests/
+│   └── veilvote.ts                   # Full integration test suite
+│                                     #    Tests all 3 phases on devnet MPC cluster
+│
+├── app/                              # Next.js 14 Frontend
+│   └── src/
+│       ├── app/                      #    Pages: landing, proposals, vote/[id], how-it-works
+│       ├── components/               #    9 React components
+│       └── lib/                      #    SDK wrappers, types, constants
+│
+└── scripts/
+    └── vps-setup.sh                  # VPS toolchain installer
 ```
 
 ---
 
-## - Quick Start
+## Quick Start
 
 ### Prerequisites
 - **Linux/macOS** (Arcium CLI requires Unix)
@@ -250,8 +253,8 @@ arcup install
 ```bash
 git clone https://github.com/mrnetwork0001/VeilVote.git
 cd VeilVote
-yarn install -  -  -  -  - # Install test dependencies
-arcium build -  -  -  -  - # Build circuits + Anchor program
+yarn install          # Install test dependencies
+arcium build          # Build circuits + Anchor program
 ```
 
 ### 3. Deploy to Devnet
@@ -262,18 +265,18 @@ solana airdrop 5
 
 # Deploy program
 arcium deploy \
- - --keypair-path ~/.config/solana/id.json \
- - --cluster-offset 456 \
- - --recovery-set-size 4 \
- - --rpc-url devnet
+  --keypair-path ~/.config/solana/id.json \
+  --cluster-offset 456 \
+  --recovery-set-size 4 \
+  --rpc-url devnet
 
 # If program already deployed, just initialize MXE:
 arcium init-mxe \
- - --keypair-path ~/.config/solana/id.json \
- - --callback-program B9xuJHLGqgb2szy76qBUiXrAFpYgx4g7aUZrEDimsRFk \
- - --cluster-offset 456 \
- - --recovery-set-size 4 \
- - --rpc-url devnet
+  --keypair-path ~/.config/solana/id.json \
+  --callback-program B9xuJHLGqgb2szy76qBUiXrAFpYgx4g7aUZrEDimsRFk \
+  --cluster-offset 456 \
+  --recovery-set-size 4 \
+  --rpc-url devnet
 ```
 
 ### 4. Run Tests
@@ -298,7 +301,7 @@ npm run dev
 
 ---
 
-## - On-Chain Instructions
+## On-Chain Instructions
 
 ### Computation Definition Initialization
 These register the Arcis circuits with the Arcium MPC network:
@@ -325,23 +328,23 @@ These register the Arcis circuits with the Arcium MPC network:
 ```rust
 // PDA: seeds = [b"poll", authority, poll_id]
 pub struct PollAccount {
- -  - pub bump: u8,
- -  - pub vote_state: [[u8; 32]; 2], - // Encrypted [yes_count, no_count]
- -  - pub id: u32,
- -  - pub authority: Pubkey, -  -  -  -  -  // Only authority can reveal
- -  - pub nonce: u128, -  -  -  -  -  -  -  -  // Cryptographic nonce
- -  - pub question: String, -  -  -  -  -  - // Poll question (max 50 chars)
+    pub bump: u8,
+    pub vote_state: [[u8; 32]; 2],  // Encrypted [yes_count, no_count]
+    pub id: u32,
+    pub authority: Pubkey,           // Only authority can reveal
+    pub nonce: u128,                 // Cryptographic nonce
+    pub question: String,            // Poll question (max 50 chars)
 }
 
 // PDA: seeds = [b"voter", poll_pda, voter_pubkey]
 pub struct VoterRecord {
- -  - pub bump: u8, -  -  -  -  -  -  -  -  -  - // Existence = already voted
+    pub bump: u8,                    // Existence = already voted
 }
 ```
 
 ---
 
-## - Testing
+## Testing
 
 The integration test (`tests/veilvote.ts`) runs the complete lifecycle against devnet MPC nodes:
 
@@ -353,35 +356,35 @@ arcium test --cluster devnet
 
 | Phase | What's Tested | Status |
 |-------|--------------|--------|
-| Setup | MXE public key retrieval with retry | - |
-| Init | 3 computation definitions + circuit upload | - |
-| Create | 3 polls with unique IDs and questions | - |
-| Vote | 3 encrypted votes (yes, no, yes) with MPC finalization | - |
-| Security | Double-vote prevention (VoterRecord PDA collision) | - |
-| Reveal | 3 result reveals with MPC decryption | - |
+| Setup | MXE public key retrieval with retry | PASS |
+| Init | 3 computation definitions + circuit upload | PASS |
+| Create | 3 polls with unique IDs and questions | PASS |
+| Vote | 3 encrypted votes (yes, no, yes) with MPC finalization | PASS |
+| Security | Double-vote prevention (VoterRecord PDA collision) | PASS |
+| Reveal | 3 result reveals with MPC decryption | PASS |
 
 ### Test Output (Devnet)
 ```
 VeilVote
- -  Circuits: init_vote_stats, vote, reveal_result - OnchainFinalized
- -  Poll 29938 created - MPC finalized
- -  Poll 82494 created - MPC finalized
- -  Poll 8887 created -  MPC finalized
- -  Vote for 29938 - queued + finalized
- -  Vote for 82494 - queued + finalized
- -  Vote for 8887 -  queued + finalized
- -  Double-vote correctly rejected (account already in use)
- -  Reveal 29938 - finalized
- -  Reveal 82494 - finalized
- -  Reveal 8887 -  finalized
- -  can vote on polls! (790258ms)
+  [PASS] Circuits: init_vote_stats, vote, reveal_result - OnchainFinalized
+  [PASS] Poll 29938 created - MPC finalized
+  [PASS] Poll 82494 created - MPC finalized
+  [PASS] Poll 8887 created  - MPC finalized
+  [PASS] Vote for 29938 - queued + finalized
+  [PASS] Vote for 82494 - queued + finalized
+  [PASS] Vote for 8887  - queued + finalized
+  [PASS] Double-vote correctly rejected (account already in use)
+  [PASS] Reveal 29938 - finalized
+  [PASS] Reveal 82494 - finalized
+  [PASS] Reveal 8887  - finalized
+  [PASS] can vote on polls! (790258ms)
 
 1 passing (13m)
 ```
 
 ---
 
-## - Arcis Circuits (MPC Logic)
+## Arcis Circuits (MPC Logic)
 
 The `encrypted-ixs/src/lib.rs` defines three encrypted instructions compiled to `.arcis` bytecode:
 
@@ -404,7 +407,7 @@ Only the boolean result is revealed - exact counts remain encrypted forever.
 
 ---
 
-## - Frontend
+## Frontend
 
 Brutalist Terminal CLI theme - high-contrast monospace design inspired by hacker culture and secure systems, reinforcing the privacy-first message visually.
 
@@ -426,7 +429,7 @@ Brutalist Terminal CLI theme - high-contrast monospace design inspired by hacker
 
 ---
 
-## - VPS Deployment Guide
+## VPS Deployment Guide
 
 ### Requirements
 - Ubuntu 22.04 VPS (4GB+ RAM, 2+ CPU cores)
@@ -449,10 +452,10 @@ arcup install
 # 4. Build & deploy
 arcium build
 arcium deploy \
- - --keypair-path ~/.config/solana/id.json \
- - --cluster-offset 456 \
- - --recovery-set-size 4 \
- - --rpc-url devnet
+  --keypair-path ~/.config/solana/id.json \
+  --cluster-offset 456 \
+  --recovery-set-size 4 \
+  --rpc-url devnet
 ```
 
 ### Troubleshooting
@@ -468,13 +471,13 @@ arcium deploy \
 
 ---
 
-## - License
+## License
 
 MIT - see [LICENSE](LICENSE)
 
 ---
 
-## - Links
+## Links
 
 - [Arcium Developer Docs](https://docs.arcium.com/developers)
 - [Arcium Examples (Voting)](https://github.com/arcium-hq/examples/tree/main/voting)
