@@ -36,6 +36,32 @@ const CLUSTER_OFFSET = 456;
 // Cache the IDL only (not the program, since connection changes per request)
 let cachedIdl: any = null;
 
+// ---------------------------------------------------------------------------
+// Server-side polls cache (60 second TTL)
+// ---------------------------------------------------------------------------
+interface PollsCache {
+  data: any;
+  expiresAt: number;
+}
+let pollsCache: PollsCache | null = null;
+
+function getCachedPolls(): any | null {
+  if (pollsCache && Date.now() < pollsCache.expiresAt) {
+    console.log('[fetchPolls] Returning cached result');
+    return pollsCache.data;
+  }
+  return null;
+}
+
+function setCachedPolls(data: any) {
+  pollsCache = { data, expiresAt: Date.now() + 60_000 }; // 60s TTL
+}
+
+export function invalidatePollsCache() {
+  pollsCache = null;
+}
+
+
 async function getProgram(connection: Connection): Promise<anchor.Program> {
   const dummyWallet = {
     publicKey: PublicKey.default,
@@ -76,12 +102,14 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case 'createProposal':
         result = await buildCreateProposal(program, connection, payerPubkey, params);
+        invalidatePollsCache(); // new proposal — fresh fetch next time
         break;
       case 'vote':
         result = await buildVote(program, connection, payerPubkey, params);
         break;
       case 'revealResult':
         result = await buildRevealResult(program, connection, payerPubkey, params);
+        invalidatePollsCache(); // reveal changes status — fresh fetch next time
         break;
       case 'fetchPolls':
         result = await fetchPolls(program, connection);
@@ -292,11 +320,15 @@ async function buildRevealResult(
 // ---------------------------------------------------------------------------
 
 async function fetchPolls(program: anchor.Program, connection: Connection) {
+  // Return cached result if still fresh
+  const cached = getCachedPolls();
+  if (cached) return cached;
+
+  const t0 = Date.now();
   const accounts = await connection.getProgramAccounts(PROGRAM_PUBKEY);
-  console.log(`[fetchPolls] Found ${accounts.length} total program accounts`);
+  console.log(`[fetchPolls] getProgramAccounts: ${Date.now() - t0}ms, ${accounts.length} accounts`);
 
   const polls: any[] = [];
-
   for (const { pubkey, account } of accounts) {
     for (const name of ['PollAccount', 'pollAccount', 'poll_account']) {
       try {
@@ -319,34 +351,58 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
       } catch {}
     }
   }
+  console.log(`[fetchPolls] Decoded ${polls.length} polls in ${Date.now() - t0}ms`);
 
-  console.log(`[fetchPolls] Decoded ${polls.length} polls`);
-
-  // Fast reveal check: fetch only the 3 most recent sigs per poll in parallel
-  // A reveal callback is always one of the most recent txs on the poll PDA
+  // Reveal check: get ALL sigs for each poll PDA (fast — no tx parsing yet),
+  // then only parse txs that have "RevealResult" in their memo log message.
+  // This way we avoid parsedTransaction calls on vote txs entirely.
   await Promise.all(
     polls.map(async (poll) => {
       try {
+        // Get up to 20 sigs (covers any realistic number of post-reveal votes)
         const sigs = await connection.getSignaturesForAddress(
           new PublicKey(poll.pda),
-          { limit: 3 },
+          { limit: 20 },
           'confirmed'
         );
 
-        for (const sigInfo of sigs) {
+        // Set creation time from oldest sig
+        if (sigs.length > 0) {
+          const oldest = sigs[sigs.length - 1];
+          if (oldest.blockTime) poll.createdAt = oldest.blockTime;
+        }
+
+        // Filter to only sigs that have "RevealResult" in the memo field
+        // (Anchor logs "Instruction: RevealResult" as a memo on the sig)
+        const revealSigs = sigs.filter(
+          (s) => s.memo && s.memo.includes('RevealResult')
+        );
+
+        // If none found by memo, check all (memo may be null on some RPCs)
+        const toCheck = revealSigs.length > 0 ? revealSigs : sigs.slice(0, 5);
+
+        for (const sigInfo of toCheck) {
           try {
             const tx = await connection.getParsedTransaction(sigInfo.signature, {
               commitment: 'confirmed',
               maxSupportedTransactionVersion: 0,
             });
-            for (const log of tx?.meta?.logMessages ?? []) {
+
+            // Check log messages for RevealResult instruction
+            const logs = tx?.meta?.logMessages ?? [];
+            const hasReveal = logs.some((l) => l.includes('RevealResult'));
+            if (!hasReveal) continue;
+
+            // Found a reveal tx — scan Program data for the event
+            for (const log of logs) {
               if (!log.startsWith('Program data:')) continue;
               const buf = Buffer.from(log.replace('Program data: ', '').trim(), 'base64');
-              // RevealResultEvent = 8 byte discriminator + 1 byte bool = 9 bytes total
+              // RevealResultEvent = 8-byte discriminator + 1-byte bool = 9 bytes
               if (buf.length === 9) {
                 poll.revealed = true;
                 poll.result = buf[8] === 1;
-                return; // done for this poll
+                console.log(`[fetchPolls] Poll ${poll.id}: revealed=${poll.result ? 'passed' : 'rejected'}`);
+                return;
               }
             }
           } catch {}
@@ -355,8 +411,12 @@ async function fetchPolls(program: anchor.Program, connection: Connection) {
     })
   );
 
-  return { polls };
+  console.log(`[fetchPolls] Total: ${Date.now() - t0}ms`);
+  const result = { polls };
+  setCachedPolls(result);
+  return result;
 }
+
 
 
 // ---------------------------------------------------------------------------
