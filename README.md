@@ -8,6 +8,10 @@
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-veilvote.online-33ff00)](https://veilvote.online)
 [![Devnet](https://img.shields.io/badge/Network-Devnet-yellow)](https://explorer.solana.com/address/B9xuJHLGqgb2szy76qBUiXrAFpYgx4g7aUZrEDimsRFk?cluster=devnet)
 
+
+<img width="1496" height="956" alt="25 04 2026_19 35 52_REC" src="https://github.com/user-attachments/assets/6b376f9a-7b02-42b1-b5d6-5ba53cadd1b2" />
+
+
 **Live App:** [https://veilvote.online](https://veilvote.online)
 
 ---
@@ -120,7 +124,7 @@ User's Browser                      Solana                    Arcium MPC Cluster
 | Individual vote secrecy | No one (including Arx nodes) sees your vote |
 | Tally secrecy | Vote counts are never revealed, only pass/fail |
 | Vote integrity | MPC correctness proofs ensure accurate tallying |
-| Double-vote prevention | On-chain VoterRecord PDAs prevent re-voting |
+| Double-vote prevention | Onchain VoterRecord PDAs prevent re-voting |
 | Coercion resistance | Voters cannot prove how they voted |
 
 ### MPC Reveal Lifecycle & Timing
